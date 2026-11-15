@@ -157,7 +157,7 @@ npm run check:dist       # committed lib/ matches a fresh build; client parses
 Last recorded results in this checkout:
 
 ```text
-unit/integration: 217 tests, 217 pass, 0 fail
+unit/integration: 224 tests, 224 pass, 0 fail
 parity (pinned Python upstream): 43 tests, 43 pass, 0 fail
 smoke: PASS
 install smoke (isolated DSH_HOME): local and GitHub install/patch/uninstall PASS; headless boot skipped in the last drives

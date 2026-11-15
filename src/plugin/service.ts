@@ -880,8 +880,9 @@ export class EconomizerService implements EconomizerApi {
    *
    * The prompt contribution is a function DSH may call for every model request. Upstream
    * renders the block at session start and folds the session only after it ends, so a
-   * session must keep the same text for its whole life. The first non-empty lookup freezes
-   * the project block for that session id; a later session picks up the newer block.
+   * session must keep the same text -- including the empty text -- for its whole life. The
+   * first lookup freezes the project block for that session id; a later session picks up the
+   * newer block.
    */
   knowledgeForSession(sessionId: string): string {
     const config = this.config()
@@ -890,12 +891,16 @@ export class EconomizerService implements EconomizerApi {
     if (!root) return ''
     const frozen = this.sessionBlocks.get(sessionId)
     if (frozen !== undefined) return frozen
+    // Freeze on the first lookup even when the project runtime is not warm yet. A later
+    // warm-up must not change this session's prompt; only a new session sees the block.
+    let block = ''
     for (const runtime of this.projectRuntimes.values()) {
       if (runtime.root !== root) continue
-      if (runtime.block) this.sessionBlocks.set(sessionId, runtime.block)
-      return runtime.block
+      block = runtime.block ?? ''
+      break
     }
-    return ''
+    this.sessionBlocks.set(sessionId, block)
+    return block
   }
 
   /** Deny set (tool names) to apply for a session's project, already filtered by policy. */

@@ -34,8 +34,9 @@ Fidelity fixes against Microsoft TokenEconomizer, pinned commit
   session id and the task index follows the session, so repeated turns cannot
   promote a fact on their own or shift recency decay.
 - **The knowledge block is frozen per session.** When DSH re-evaluates
-  `systemPrompt.context.text(assembly)` on every request, the first non-empty
-  block for a session is reused, matching upstream's per-session render.
+  `systemPrompt.context.text(assembly)` on every request, the first lookup is
+  reused, including an empty block and even before the project runtime is
+  warm; a new session sees newer facts.
 - **Subagents are not loop-guarded.** `beginTurn`, `onToolResult` and
   `finishTurn` skip subagent sessions; the status view reports
   `loopguardIntervene=false` as "observing only" instead of implying redirects.

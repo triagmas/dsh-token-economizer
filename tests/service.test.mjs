@@ -79,7 +79,7 @@ async function setup(configOverrides = {}, options = {}) {
     },
     onToolsChanged: (root) => reconciles.push(root),
   })
-  await service.warmProject(PROJECT)
+  if (options.warm !== false) await service.warmProject(PROJECT)
   service.registerRoot('session-1', PROJECT)
   return { home, store, service, config, redirects, configWrites, reconciles, judgeCalls }
 }
@@ -619,6 +619,59 @@ test('the real injection path uses the engine block and the repo manual header',
     assert.match(block, /^# repo operating manual \(economizer-project\)/)
     assert.match(block, /Canonical test command is `pnpm test`\./)
     assert.equal(block.includes('# Learned project knowledge'), false)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('a session freezes an empty knowledge block at first lookup', async () => {
+  const env = await setup({ mode: 'active', microskillsInject: true, microskillsProfile: 'distiller' })
+  try {
+    assert.equal(env.service.knowledgeForSession('session-1'), '', 'the session starts with no learned block')
+
+    const project = await env.store.project(PROJECT)
+    await project.updateSkills((file) => {
+      file.facts = [activeFact()]
+    })
+    await finishTurn(env.service, { turn: 1, calls: [] })
+    assert.equal(
+      env.service.knowledgeForSession('session-1'),
+      '',
+      'a fact learned in the middle of the session must not change this session prompt',
+    )
+
+    env.service.registerRoot('session-2', PROJECT)
+    assert.match(env.service.knowledgeForSession('session-2'), /Canonical test command is `pnpm test`\./)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('a session freezes an empty block even before the project warms', async () => {
+  const env = await setup(
+    { mode: 'active', microskillsInject: true, microskillsProfile: 'distiller' },
+    { warm: false },
+  )
+  try {
+    const project = await env.store.project(PROJECT)
+    await project.updateSkills((file) => {
+      file.facts = [activeFact()]
+    })
+
+    assert.equal(
+      env.service.knowledgeForSession('session-1'),
+      '',
+      'the first lookup happens before any project runtime exists',
+    )
+    await env.service.warmProject(PROJECT)
+    assert.equal(
+      env.service.knowledgeForSession('session-1'),
+      '',
+      'warming the project must not change the block of a session that already looked it up',
+    )
+
+    env.service.registerRoot('session-2', PROJECT)
+    assert.match(env.service.knowledgeForSession('session-2'), /Canonical test command is `pnpm test`\./)
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }
