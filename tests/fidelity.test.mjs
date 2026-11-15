@@ -207,6 +207,9 @@ test('T-b tool pruning applies a new hide to the next session, never the current
       'the current session keeps its tool catalog',
     )
 
+    // A new agent session is created before its first turn: that is what applies pending.
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
     await endTurn(env.service, {
       sessionId: 'session-2',
       turn: 1,

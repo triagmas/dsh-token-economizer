@@ -572,6 +572,8 @@ test('automatic pruning persists the hidden set for the next session, then resto
     assert.deepEqual(await env.service.denySetForSession('session-1'), [], 'the current session is never rewritten')
 
     // Session 2 starts and picks up the pending hide.
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
     await finishTurn(env.service, {
       sessionId: 'session-2',
       turn: 1,
@@ -804,6 +806,39 @@ test('the quiet period holds a pending hide until the project has been idle', as
     env.service.registerRoot('session-3', PROJECT)
     await env.service.beginSession('session-3', PROJECT)
     assert.ok((await env.service.denySetForSession('session-3')).includes('rare_tool'), 'idle project applies the pending hide')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('a long-lived session cannot apply a hidden set discovered mid-session', async () => {
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
+  })
+  try {
+    // This is the one `agent/created` for session-1.
+    await env.service.beginSession('session-1', PROJECT)
+    await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+
+    const report = await env.service.tools({ sessionId: 'session-1' })
+    assert.ok(
+      report.notes.some((note) => note.includes('agent/created')),
+      'the report names the event that will apply the pending hide',
+    )
+
+    // Later turns and even a repeated start call must not apply the pending hide here.
+    await finishTurn(env.service, { turn: 2, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    await env.service.beginSession('session-1', PROJECT)
+    assert.deepEqual(await env.service.denySetForSession('session-1'), [], 'a long-lived session keeps its catalog')
+
+    // Only a newly created session applies it.
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+    assert.ok((await env.service.denySetForSession('session-2')).includes('rare_tool'))
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }

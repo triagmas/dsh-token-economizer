@@ -279,13 +279,17 @@ export class EconomizerService implements EconomizerApi {
   }
 
   /**
-   * Start a session before the Host reconciles its tool catalog. Applies the pending
-   * automatic hide list when the project has been quiet long enough (or the list is
-   * older than 24h), otherwise leaves it for a later session. Upstream `fold.py`
-   * deliberately waits for a later session so a running prompt cache is not invalidated.
+   * Handle `agent/created`: the ONLY event that may apply a pending automatic hide. The
+   * call is idempotent, so a long-lived session cannot re-enter it. Applies the pending
+   * list when the project has been quiet long enough (or the list is older than 24h),
+   * otherwise leaves it for a later session. Upstream `fold.py` deliberately waits for a
+   * later session so a running prompt cache is not invalidated.
    */
   async beginSession(sessionId: string, root: string | null = null): Promise<void> {
     if (!sessionId) return
+    // The Host fires `agent/created` once per session. A repeated call for the same id
+    // (a long-lived session, a retry) must not apply a pending hide to the running catalog.
+    if (this.startedSessions.has(sessionId)) return
     const projectRoot = root ?? this.projectRootForSession(sessionId)
     if (!projectRoot) return
     const config = this.config()
@@ -326,12 +330,6 @@ export class EconomizerService implements EconomizerApi {
     if (changed) this.options.onToolsChanged?.(projectRoot)
   }
 
-  private ensureSessionStarted(sessionId: string, root: string | null): void {
-    if (!sessionId || this.startedSessions.has(sessionId)) return
-    this.startedSessions.add(sessionId)
-    this.queue.run(() => this.beginSession(sessionId, root), this.logger)
-  }
-
   /** Remember the model route a session uses, for the optional judge. */
   setSessionRoute(sessionId: string, route: { provider?: string; model?: string } | undefined): void {
     if (!sessionId) return
@@ -353,7 +351,6 @@ export class EconomizerService implements EconomizerApi {
     this.pendingDecisions.delete(session.sessionId)
     const config = this.config()
     const projectRoot = session.projectRoot ?? this.roots.get(session.sessionId) ?? this.roots.get(session.rootSessionId) ?? null
-    if (projectRoot) this.ensureSessionStarted(session.sessionId, projectRoot)
     if (!this.isOn(config) || !config.loopguardEnabled) return
     if (!projectRoot) return
     const projectId = projectIdForRoot(projectRoot)
@@ -1179,7 +1176,7 @@ export class EconomizerService implements EconomizerApi {
       if (file.pruned.length) notes.push(`${file.pruned.length} tool(s) are currently hidden by policy.`)
       if (file.autoPending?.items?.length) {
         notes.push(
-          `${file.autoPending.items.length} evidenced tool(s) are waiting for a later session (quiet period ${config.toolpruneQuietMinutes} min).`,
+          `${file.autoPending.items.length} evidenced tool(s) will be applied on agent/created of a later session, after ${config.toolpruneQuietMinutes} min of quiet (or 24 h).`,
         )
       }
     }
