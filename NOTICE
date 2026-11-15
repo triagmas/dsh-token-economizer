@@ -1,0 +1,15 @@
+dsh-token-economizer
+Copyright 2026 dsh-token-economizer contributors
+
+This product ports deterministic algorithms from Microsoft TokenEconomizer
+(https://github.com/microsoft/TokenEconomizer), pinned at commit
+7042ea89dd5e5ecbc67ad865ad6e256e61be8bf0 and licensed under the Apache
+License, Version 2.0. The upstream license text is reproduced in LICENSE.
+
+This is an independent port. It is not published by Microsoft and is not
+endorsed by Microsoft. "Microsoft TokenEconomizer" refers to the upstream
+project.
+
+The plugin runs inside DeepSeek Harness (DSH) and uses only public DSH/Cordis
+APIs. It contains no copy of DSH source code. DSH is licensed separately by its
+authors; this plugin is not affiliated with or endorsed by DeepSeek.

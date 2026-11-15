@@ -1,0 +1,11 @@
+node_modules/
+.upstream/
+.dsh/
+.dsh-test-drive/
+.npm-cache/
+tests/.tmp/
+benchmark/out/
+*.tsbuildinfo
+*.log
+.env
+.env.*

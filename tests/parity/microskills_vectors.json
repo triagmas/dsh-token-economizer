@@ -1,0 +1,4001 @@
+{
+ "meta": {
+  "upstream": "microsoft/TokenEconomizer",
+  "commit": "7042ea89dd5e5ecbc67ad865ad6e256e61be8bf0",
+  "license": "Apache-2.0",
+  "root": "/tmp/dsh-microskills-parity-b17y_drb"
+ },
+ "unwrap": [
+  {
+   "in": "pytest -q",
+   "out": "pytest -q"
+  },
+  {
+   "in": "/bin/bash -lc \"python -m pytest -q\"",
+   "out": "python -m pytest -q"
+  },
+  {
+   "in": "/bin/bash -lc 'cd tests && python runtests.py'",
+   "out": "cd tests && python runtests.py"
+  },
+  {
+   "in": "bash -lc \"echo \\\"hi\\\"\"",
+   "out": "bash -lc \"echo \\\"hi\\\"\""
+  },
+  {
+   "in": "  cd /repo && make test  ",
+   "out": "  cd /repo && make test  "
+  },
+  {
+   "in": "sh -c 'npm run build'",
+   "out": "sh -c 'npm run build'"
+  },
+  {
+   "in": "",
+   "out": ""
+  }
+ ],
+ "segments": [
+  {
+   "in": "cd /repo && python -m pytest -q tests | tail -5",
+   "out": [
+    "cd /repo",
+    "python -m pytest -q tests",
+    "tail -5"
+   ]
+  },
+  {
+   "in": "a && b || c; d | e",
+   "out": [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e"
+   ]
+  },
+  {
+   "in": "echo 'a && b' && real",
+   "out": [
+    "echo 'a && b'",
+    "real"
+   ]
+  },
+  {
+   "in": "python -c \"print(1)\" 2>&1 | tail",
+   "out": [
+    "python -c \"print(1)\" 2>&1",
+    "tail"
+   ]
+  },
+  {
+   "in": "cat <<'EOF'\nrm -rf /tmp/x\nEOF\nls",
+   "out": [
+    "cat <<'EOF' <heredoc>",
+    "ls"
+   ]
+  },
+  {
+   "in": "FOO=1 BAR=2 make test",
+   "out": [
+    "FOO=1 BAR=2 make test"
+   ]
+  },
+  {
+   "in": "",
+   "out": []
+  }
+ ],
+ "error_class": [
+  {
+   "in": "bash: pytest: command not found",
+   "out": "command_missing"
+  },
+  {
+   "in": "python: can't open file 'x.py': [Errno 2] No such file or directory",
+   "out": "script_missing"
+  },
+  {
+   "in": "ModuleNotFoundError: No module named 'yaml'",
+   "out": "module_missing"
+  },
+  {
+   "in": "Command 'foo' not found, did you mean:",
+   "out": null
+  },
+  {
+   "in": "Usage: django-admin [options]",
+   "out": "usage_error"
+  },
+  {
+   "in": "error: unrecognized arguments: -k foo",
+   "out": "usage_error"
+  },
+  {
+   "in": "Could not resolve host: example.test",
+   "out": "name_resolution"
+  },
+  {
+   "in": "Connection refused",
+   "out": "connection_refused"
+  },
+  {
+   "in": "All tests passed",
+   "out": null
+  },
+  {
+   "in": "Exit code: 2",
+   "out": null
+  },
+  {
+   "in": "",
+   "out": null
+  }
+ ],
+ "exit_hint": [
+  {
+   "in": "bash: pytest: command not found",
+   "out": null
+  },
+  {
+   "in": "python: can't open file 'x.py': [Errno 2] No such file or directory",
+   "out": null
+  },
+  {
+   "in": "ModuleNotFoundError: No module named 'yaml'",
+   "out": null
+  },
+  {
+   "in": "Command 'foo' not found, did you mean:",
+   "out": null
+  },
+  {
+   "in": "Usage: django-admin [options]",
+   "out": null
+  },
+  {
+   "in": "error: unrecognized arguments: -k foo",
+   "out": null
+  },
+  {
+   "in": "Could not resolve host: example.test",
+   "out": null
+  },
+  {
+   "in": "Connection refused",
+   "out": null
+  },
+  {
+   "in": "All tests passed",
+   "out": null
+  },
+  {
+   "in": "Exit code: 2",
+   "out": 2
+  },
+  {
+   "in": "",
+   "out": null
+  }
+ ],
+ "label_rule": [
+  {
+   "a": "tests.app.Test.test_x",
+   "b": "tests/app/Test/test_x",
+   "out": null
+  },
+  {
+   "a": "tests.app.Test.test_x",
+   "b": "tests/app.py::Test::test_x",
+   "out": null
+  },
+  {
+   "a": "app.tests.test_x",
+   "b": "app.tests.test_x",
+   "out": null
+  },
+  {
+   "a": "tests/test_x.py::test_y",
+   "b": "tests/test_x.py",
+   "out": [
+    "sep",
+    "::"
+   ]
+  },
+  {
+   "a": "a.b",
+   "b": "a/b",
+   "out": null
+  },
+  {
+   "a": "plain",
+   "b": "plain",
+   "out": null
+  },
+  {
+   "a": "tests.app::Test::x",
+   "b": "tests.app.Test.x",
+   "out": [
+    "sep",
+    "::"
+   ]
+  }
+ ],
+ "classify": [
+  {
+   "cmd": "pytest -q tests",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "run_tests",
+     "form": "pytest",
+     "head": "pytest",
+     "prefix": "",
+     "segment": "pytest -q tests",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "cd /repo && python -m pytest -q tests",
+   "vocab": "generic",
+   "call_index": 3,
+   "cwd": "",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "obs": [
+    {
+     "call": 3,
+     "intent": "run_tests",
+     "form": "cd /repo && python -m pytest",
+     "head": "python",
+     "prefix": "cd /repo &&",
+     "segment": "python -m pytest -q tests",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "FOO=1 python3 bin/test.py",
+   "vocab": "python",
+   "call_index": 1,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 1,
+     "intent": "run_interpreter",
+     "form": "python3",
+     "head": "python3",
+     "prefix": "",
+     "segment": "python3 bin/test.py",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": true,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "npm run lint",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "run_build",
+     "form": "npm run lint",
+     "head": "npm",
+     "prefix": "",
+     "segment": "npm run lint",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "pip install -e .",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "fetch_remote",
+     "form": "pip install",
+     "head": "pip",
+     "prefix": "",
+     "segment": "pip install -e .",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "rtk proxy python -m pytest",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "run_tests",
+     "form": "python -m pytest",
+     "head": "python",
+     "prefix": "",
+     "segment": "python -m pytest",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "conda activate env && python runtests.py",
+   "vocab": "python",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "run_tests",
+     "form": "conda activate env && python runtests.py",
+     "head": "python",
+     "prefix": "conda activate env &&",
+     "segment": "python runtests.py",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "cd src && pytest -q",
+   "vocab": "generic",
+   "call_index": 2,
+   "cwd": "",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": "/tmp/dsh-microskills-parity-b17y_drb",
+   "obs": [
+    {
+     "call": 2,
+     "intent": "run_tests",
+     "form": "cd src && pytest",
+     "head": "pytest",
+     "prefix": "cd src &&",
+     "segment": "pytest -q",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "curl -sSf https://example.test/api | head",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "fetch_remote",
+     "form": "curl",
+     "head": "curl",
+     "prefix": "",
+     "segment": "curl -sSf https://example.test/api",
+     "hosts": [
+      "example.test"
+     ],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "git ls-remote origin",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "fetch_remote",
+     "form": "git ls-remote",
+     "head": "git",
+     "prefix": "",
+     "segment": "git ls-remote origin",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "python -c \"print(1)\" 2>&1 | tail -5",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": [
+    {
+     "call": 0,
+     "intent": "run_interpreter",
+     "form": "python",
+     "head": "python",
+     "prefix": "",
+     "segment": "python -c \"print(1)\" 2>&1",
+     "hosts": [],
+     "probe": null,
+     "outcome": null,
+     "labels": [],
+     "label_err": false,
+     "loaded": false,
+     "tests_ran": false,
+     "env": false,
+     "not_found": false
+    }
+   ]
+  },
+  {
+   "cmd": "docker build -t app .",
+   "vocab": "generic",
+   "call_index": 0,
+   "cwd": "",
+   "root": null,
+   "top": null,
+   "obs": []
+  }
+ ],
+ "observe": [
+  {
+   "name": "generic",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "npm run lint"
+     },
+     "output": "ok",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && npm test"
+     },
+     "output": "3 passing",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/src/a.ts"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python3 -c 'import yaml'"
+     },
+     "output": "ModuleNotFoundError: No module named 'yaml'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git status --short"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "run_build",
+      "form": "npm run lint",
+      "head": "npm",
+      "prefix": "",
+      "segment": "npm run lint",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "run_tests",
+      "form": "cd src && npm test",
+      "head": "npm",
+      "prefix": "cd src &&",
+      "segment": "npm test",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": true,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 3,
+      "intent": "run_interpreter",
+      "form": "python3",
+      "head": "python3",
+      "prefix": "",
+      "segment": "python3 -c 'import yaml'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "module_missing",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [
+     "a.ts"
+    ],
+    "n_calls": 5,
+    "env": []
+   }
+  },
+  {
+   "name": "python",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python runtests.py"
+     },
+     "output": "Traceback (most recent call last):\nModuleNotFoundError: No module named 'app'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && python runtests.py"
+     },
+     "output": "Ran 3 tests in 0.01s\nOK",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/app.py"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py::Test::test_x"
+     },
+     "output": "ERROR: not found: tests/app.py::Test::test_x",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py -q"
+     },
+     "output": "3 passed",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "python",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "run_tests",
+      "form": "python runtests.py",
+      "head": "python",
+      "prefix": "",
+      "segment": "python runtests.py",
+      "hosts": [],
+      "probe": null,
+      "outcome": "module_missing",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "run_tests",
+      "form": "cd src && python runtests.py",
+      "head": "python",
+      "prefix": "cd src &&",
+      "segment": "python runtests.py",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": true,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 3,
+      "intent": "run_tests",
+      "form": "pytest",
+      "head": "pytest",
+      "prefix": "",
+      "segment": "pytest tests/app.py::Test::test_x",
+      "hosts": [],
+      "probe": null,
+      "outcome": "command_missing",
+      "labels": [
+       "tests/app.py::Test::test_x"
+      ],
+      "label_err": true,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 4,
+      "intent": "run_tests",
+      "form": "pytest",
+      "head": "pytest",
+      "prefix": "",
+      "segment": "pytest tests/app.py -q",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [
+       "tests/app.py"
+      ],
+      "label_err": false,
+      "loaded": true,
+      "tests_ran": true,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [
+     "app.py"
+    ],
+    "n_calls": 5,
+    "env": []
+   }
+  },
+  {
+   "name": "env_value",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python -c 'import app'"
+     },
+     "output": "RuntimeError: environment variable 'APP_MODE' is not set",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "export APP_MODE=prod && python -c 'import app'"
+     },
+     "output": "app imported",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "export APP_MODE=dev && python -c 'import app'"
+     },
+     "output": "RuntimeError: environment variable 'APP_MODE' is not set",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "run_interpreter",
+      "form": "python",
+      "head": "python",
+      "prefix": "",
+      "segment": "python -c 'import app'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "run_interpreter",
+      "form": "python",
+      "head": "python",
+      "prefix": "",
+      "segment": "python -c 'import app'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 2,
+      "intent": "run_interpreter",
+      "form": "python",
+      "head": "python",
+      "prefix": "",
+      "segment": "python -c 'import app'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [],
+    "n_calls": 3,
+    "env": [
+     {
+      "need": [
+       "APP_MODE"
+      ],
+      "sets": {},
+      "ok": false,
+      "call": 0
+     },
+     {
+      "need": [],
+      "sets": {
+       "APP_MODE": "prod"
+      },
+      "ok": true,
+      "call": 1
+     },
+     {
+      "need": [
+       "APP_MODE"
+      ],
+      "sets": {
+       "APP_MODE": "dev"
+      },
+      "ok": false,
+      "call": 2
+     }
+    ]
+   }
+  },
+  {
+   "name": "boundary",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "curl -sSf https://example.test/api"
+     },
+     "output": "curl: (6) Could not resolve host: example.test",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "curl -sSf https://elsewhere.test/api"
+     },
+     "output": "{\"ok\": true}",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "fetch_remote",
+      "form": "curl",
+      "head": "curl",
+      "prefix": "",
+      "segment": "curl -sSf https://example.test/api",
+      "hosts": [
+       "example.test"
+      ],
+      "probe": null,
+      "outcome": "name_resolution",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "fetch_remote",
+      "form": "curl",
+      "head": "curl",
+      "prefix": "",
+      "segment": "curl -sSf https://elsewhere.test/api",
+      "hosts": [
+       "elsewhere.test"
+      ],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [],
+    "n_calls": 2,
+    "env": []
+   }
+  },
+  {
+   "name": "probe",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git ls-remote origin"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git for-each-ref --format='%(refname)'"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "fetch_remote",
+      "form": "git ls-remote",
+      "head": "git",
+      "prefix": "",
+      "segment": "git ls-remote origin",
+      "hosts": [],
+      "probe": null,
+      "outcome": null,
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "probe_vcs_refs",
+      "form": "git for-each-ref",
+      "head": "git",
+      "prefix": "",
+      "segment": "git for-each-ref --format='%(refname)'",
+      "hosts": [],
+      "probe": "refs",
+      "outcome": "empty",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [],
+    "n_calls": 2,
+    "env": []
+   }
+  }
+ ],
+ "lifecycle": [
+  {
+   "name": "promote",
+   "high": false,
+   "drift": true,
+   "steps": [
+    {
+     "now": 0,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 1,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 2,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    }
+   ],
+   "now": 5,
+   "final": {
+    "key": "promote",
+    "high": false,
+    "drift": true,
+    "state": "CANDIDATE",
+    "confirms": [
+     [
+      0,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      1,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      2,
+      [
+       "a.py"
+      ]
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 0,
+    "fire_den": 3,
+    "promoted_at": null,
+    "retired_at": null
+   },
+   "injectable": false,
+   "score": 1.24928,
+   "applied": [
+    "confirm",
+    "confirm",
+    "confirm"
+   ]
+  },
+  {
+   "name": "drift",
+   "high": false,
+   "drift": true,
+   "steps": [
+    {
+     "now": 0,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 1,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 2,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "b.py"
+     ]
+    }
+   ],
+   "now": 5,
+   "final": {
+    "key": "drift",
+    "high": false,
+    "drift": true,
+    "state": "CANDIDATE",
+    "confirms": [
+     [
+      0,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      1,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      2,
+      [
+       "b.py"
+      ]
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 0,
+    "fire_den": 3,
+    "promoted_at": null,
+    "retired_at": null
+   },
+   "injectable": false,
+   "score": 1.24928,
+   "applied": [
+    "confirm",
+    "confirm",
+    "confirm"
+   ]
+  },
+  {
+   "name": "hard-kill",
+   "high": true,
+   "drift": true,
+   "steps": [
+    {
+     "now": 0,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 1,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 2,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 3,
+     "verdict": "contradict",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    }
+   ],
+   "now": 5,
+   "final": {
+    "key": "hard-kill",
+    "high": true,
+    "drift": true,
+    "state": "CANDIDATE",
+    "confirms": [
+     [
+      0,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      1,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      2,
+      [
+       "a.py"
+      ]
+     ]
+    ],
+    "contradicts": [
+     3
+    ],
+    "fire_num": 0,
+    "fire_den": 4,
+    "promoted_at": null,
+    "retired_at": null
+   },
+   "injectable": false,
+   "score": -1.95072,
+   "applied": [
+    "confirm",
+    "confirm",
+    "confirm",
+    "contradict"
+   ]
+  },
+  {
+   "name": "soft-retire",
+   "high": false,
+   "drift": true,
+   "steps": [
+    {
+     "now": 0,
+     "verdict": "confirm",
+     "fired": true,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 1,
+     "verdict": "confirm",
+     "fired": true,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 2,
+     "verdict": "confirm",
+     "fired": true,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 3,
+     "verdict": "contradict",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 4,
+     "verdict": "contradict",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    }
+   ],
+   "now": 6,
+   "final": {
+    "key": "soft-retire",
+    "high": false,
+    "drift": true,
+    "state": "CANDIDATE",
+    "confirms": [
+     [
+      0,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      1,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      2,
+      [
+       "a.py"
+      ]
+     ]
+    ],
+    "contradicts": [
+     3,
+     4
+    ],
+    "fire_num": 3,
+    "fire_den": 5,
+    "promoted_at": null,
+    "retired_at": null
+   },
+   "injectable": false,
+   "score": -4.760576,
+   "applied": [
+    "confirm",
+    "confirm",
+    "confirm",
+    "contradict",
+    "contradict"
+   ]
+  },
+  {
+   "name": "fire-gate",
+   "high": false,
+   "drift": false,
+   "steps": [
+    {
+     "now": 0,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [
+      "a.py"
+     ]
+    },
+    {
+     "now": 1,
+     "verdict": "confirm",
+     "fired": true,
+     "exercised": true,
+     "files": []
+    },
+    {
+     "now": 2,
+     "verdict": "confirm",
+     "fired": true,
+     "exercised": true,
+     "files": []
+    },
+    {
+     "now": 3,
+     "verdict": "confirm",
+     "fired": true,
+     "exercised": true,
+     "files": []
+    }
+   ],
+   "now": 5,
+   "final": {
+    "key": "fire-gate",
+    "high": false,
+    "drift": false,
+    "state": "ACTIVE",
+    "confirms": [
+     [
+      0,
+      [
+       "a.py"
+      ]
+     ],
+     [
+      1,
+      []
+     ],
+     [
+      2,
+      []
+     ],
+     [
+      3,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 3,
+    "fire_den": 4,
+    "promoted_at": 2,
+    "retired_at": null
+   },
+   "injectable": true,
+   "score": 1.88928,
+   "applied": [
+    "confirm",
+    "confirm",
+    "confirm",
+    "confirm"
+   ]
+  },
+  {
+   "name": "candidate-kill",
+   "high": true,
+   "drift": false,
+   "steps": [
+    {
+     "now": 0,
+     "verdict": "contradict",
+     "fired": false,
+     "exercised": true,
+     "files": []
+    }
+   ],
+   "now": 2,
+   "final": {
+    "key": "candidate-kill",
+    "high": true,
+    "drift": false,
+    "state": "CANDIDATE",
+    "confirms": [],
+    "contradicts": [
+     0
+    ],
+    "fire_num": 0,
+    "fire_den": 1,
+    "promoted_at": null,
+    "retired_at": null
+   },
+   "injectable": false,
+   "score": -3.2,
+   "applied": [
+    "contradict"
+   ]
+  }
+ ],
+ "env_claims": [
+  {
+   "spec": {
+    "id": "form_repair:run_tests:python runtests.py",
+    "family": "form_repair",
+    "high": false,
+    "params": {
+     "intent": "run_tests",
+     "a": "python runtests.py",
+     "b_counts": {
+      "cd tests && python runtests.py": 3
+     },
+     "error_counts": {
+      "module_missing": 2
+     }
+    },
+    "steps": [
+     {
+      "now": 0,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 1,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 2,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 3,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     }
+    ]
+   },
+   "params": {
+    "intent": "run_tests",
+    "a": "python runtests.py",
+    "b_counts": {
+     "cd tests && python runtests.py": 3
+    },
+    "error_counts": {
+     "module_missing": 2
+    },
+    "contra_streak": 0
+   },
+   "claim": "`python runtests.py \u2026` fails here with ModuleNotFoundError; `(cd tests && python runtests.py \u2026)` works.",
+   "state": "ACTIVE",
+   "injectable": true,
+   "life": {
+    "key": "form_repair:run_tests:python runtests.py",
+    "high": false,
+    "drift": false,
+    "state": "ACTIVE",
+    "confirms": [
+     [
+      0,
+      []
+     ],
+     [
+      1,
+      []
+     ],
+     [
+      2,
+      []
+     ],
+     [
+      3,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 4,
+    "fire_den": 4,
+    "promoted_at": 2,
+    "retired_at": null
+   },
+   "render": "# environment facts learned from earlier sessions in this repository\n- `python runtests.py \u2026` fails here with ModuleNotFoundError; `(cd tests && python runtests.py \u2026)` works.\n",
+   "injected": [
+    "form_repair:run_tests:python runtests.py"
+   ]
+  },
+  {
+   "spec": {
+    "id": "absent_tool:docker",
+    "family": "absent_tool",
+    "high": true,
+    "params": {
+     "tool": "docker",
+     "intent": "run_build"
+    },
+    "steps": [
+     {
+      "now": 0,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 1,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 2,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 3,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     }
+    ]
+   },
+   "params": {
+    "tool": "docker",
+    "intent": "run_build"
+   },
+   "claim": "`docker \u2026` fails here with command not found, and no other way to run it has worked.",
+   "state": "ACTIVE",
+   "injectable": true,
+   "life": {
+    "key": "absent_tool:docker",
+    "high": true,
+    "drift": false,
+    "state": "ACTIVE",
+    "confirms": [
+     [
+      0,
+      []
+     ],
+     [
+      1,
+      []
+     ],
+     [
+      2,
+      []
+     ],
+     [
+      3,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 4,
+    "fire_den": 4,
+    "promoted_at": 2,
+    "retired_at": null
+   },
+   "render": "# environment facts learned from earlier sessions in this repository\n- `docker \u2026` fails here with command not found, and no other way to run it has worked.\n",
+   "injected": [
+    "absent_tool:docker"
+   ]
+  },
+  {
+   "spec": {
+    "id": "arg_repair:pytest:sep:::",
+    "family": "arg_repair",
+    "high": false,
+    "params": {
+     "form": "pytest",
+     "kind": "sep",
+     "param": "::",
+     "examples": {
+      "tests/app.py::Test::test_x tests/app.py::Test.test_x": 2
+     }
+    },
+    "steps": [
+     {
+      "now": 0,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 1,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 2,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 3,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     }
+    ]
+   },
+   "params": {
+    "form": "pytest",
+    "kind": "sep",
+    "param": "::",
+    "examples": {
+     "tests/app.py::Test::test_x tests/app.py::Test.test_x": 2
+    }
+   },
+   "claim": "`pytest` takes dotted test labels (`module.Class.test`, not `module::Class::test`).",
+   "state": "ACTIVE",
+   "injectable": true,
+   "life": {
+    "key": "arg_repair:pytest:sep:::",
+    "high": false,
+    "drift": false,
+    "state": "ACTIVE",
+    "confirms": [
+     [
+      0,
+      []
+     ],
+     [
+      1,
+      []
+     ],
+     [
+      2,
+      []
+     ],
+     [
+      3,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 4,
+    "fire_den": 4,
+    "promoted_at": 2,
+    "retired_at": null
+   },
+   "render": "# environment facts learned from earlier sessions in this repository\n- `pytest` takes dotted test labels (`module.Class.test`, not `module::Class::test`).\n",
+   "injected": [
+    "arg_repair:pytest:sep:::"
+   ]
+  },
+  {
+   "spec": {
+    "id": "env_value:APP_MODE",
+    "family": "env_value",
+    "high": false,
+    "params": {
+     "var": "APP_MODE",
+     "good": {
+      "prod": 2
+     },
+     "bad": {
+      "dev": 1
+     }
+    },
+    "steps": [
+     {
+      "now": 0,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 1,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 2,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 3,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     }
+    ]
+   },
+   "params": {
+    "var": "APP_MODE",
+    "good": {
+     "prod": 2
+    },
+    "bad": {
+     "dev": 1
+    }
+   },
+   "claim": "Code that imports the project needs `APP_MODE` set here: `APP_MODE=prod` works, `dev` does not.",
+   "state": "ACTIVE",
+   "injectable": true,
+   "life": {
+    "key": "env_value:APP_MODE",
+    "high": false,
+    "drift": false,
+    "state": "ACTIVE",
+    "confirms": [
+     [
+      0,
+      []
+     ],
+     [
+      1,
+      []
+     ],
+     [
+      2,
+      []
+     ],
+     [
+      3,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 4,
+    "fire_den": 4,
+    "promoted_at": 2,
+    "retired_at": null
+   },
+   "render": "# environment facts learned from earlier sessions in this repository\n- Code that imports the project needs `APP_MODE` set here: `APP_MODE=prod` works, `dev` does not.\n",
+   "injected": [
+    "env_value:APP_MODE"
+   ]
+  },
+  {
+   "spec": {
+    "id": "boundary:fetch_remote",
+    "family": "boundary",
+    "high": true,
+    "params": {
+     "hosts": {
+      "example.test": 3,
+      "other.test": 1
+     }
+    },
+    "steps": [
+     {
+      "now": 0,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 1,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 2,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 3,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     }
+    ]
+   },
+   "params": {
+    "hosts": {
+     "example.test": 3,
+     "other.test": 1
+    }
+   },
+   "claim": "Outbound connections to example.test and other.test are refused here; nothing can be fetched from them.",
+   "state": "ACTIVE",
+   "injectable": true,
+   "life": {
+    "key": "boundary:fetch_remote",
+    "high": true,
+    "drift": false,
+    "state": "ACTIVE",
+    "confirms": [
+     [
+      0,
+      []
+     ],
+     [
+      1,
+      []
+     ],
+     [
+      2,
+      []
+     ],
+     [
+      3,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 4,
+    "fire_den": 4,
+    "promoted_at": 2,
+    "retired_at": null
+   },
+   "render": "# environment facts learned from earlier sessions in this repository\n- Outbound connections to example.test and other.test are refused here; nothing can be fetched from them.\n",
+   "injected": [
+    "boundary:fetch_remote"
+   ]
+  },
+  {
+   "spec": {
+    "id": "empty_probe:vcs_refs",
+    "family": "empty_probe",
+    "high": true,
+    "params": {
+     "kinds": {
+      "ls_remote": 4
+     }
+    },
+    "steps": [
+     {
+      "now": 0,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 1,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 2,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     },
+     {
+      "now": 3,
+      "verdict": "confirm",
+      "fired": true,
+      "exercised": true
+     }
+    ]
+   },
+   "params": {
+    "kinds": {
+     "ls_remote": 4
+    }
+   },
+   "claim": "This checkout has no git remote and no branches, tags or unreachable objects beyond HEAD; its history ends at the checked-out commit.",
+   "state": "ACTIVE",
+   "injectable": true,
+   "life": {
+    "key": "empty_probe:vcs_refs",
+    "high": true,
+    "drift": false,
+    "state": "ACTIVE",
+    "confirms": [
+     [
+      0,
+      []
+     ],
+     [
+      1,
+      []
+     ],
+     [
+      2,
+      []
+     ],
+     [
+      3,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 4,
+    "fire_den": 4,
+    "promoted_at": 2,
+    "retired_at": null
+   },
+   "render": "# environment facts learned from earlier sessions in this repository\n- This checkout has no git remote and no branches, tags or unreachable objects beyond HEAD; its history ends at the checked-out commit.\n",
+   "injected": [
+    "empty_probe:vcs_refs"
+   ]
+  }
+ ],
+ "env_update": [
+  {
+   "name": "python",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python runtests.py"
+     },
+     "output": "Traceback (most recent call last):\nModuleNotFoundError: No module named 'app'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && python runtests.py"
+     },
+     "output": "Ran 3 tests in 0.01s\nOK",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/app.py"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py::Test::test_x"
+     },
+     "output": "ERROR: not found: tests/app.py::Test::test_x",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py -q"
+     },
+     "output": "3 passed",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "python",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "run_tests",
+      "form": "python runtests.py",
+      "head": "python",
+      "prefix": "",
+      "segment": "python runtests.py",
+      "hosts": [],
+      "probe": null,
+      "outcome": "module_missing",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "run_tests",
+      "form": "cd src && python runtests.py",
+      "head": "python",
+      "prefix": "cd src &&",
+      "segment": "python runtests.py",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": true,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 3,
+      "intent": "run_tests",
+      "form": "pytest",
+      "head": "pytest",
+      "prefix": "",
+      "segment": "pytest tests/app.py::Test::test_x",
+      "hosts": [],
+      "probe": null,
+      "outcome": "command_missing",
+      "labels": [
+       "tests/app.py::Test::test_x"
+      ],
+      "label_err": true,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 4,
+      "intent": "run_tests",
+      "form": "pytest",
+      "head": "pytest",
+      "prefix": "",
+      "segment": "pytest tests/app.py -q",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [
+       "tests/app.py"
+      ],
+      "label_err": false,
+      "loaded": true,
+      "tests_ran": true,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [
+     "app.py"
+    ],
+    "n_calls": 5,
+    "env": []
+   },
+   "injected": [
+    [],
+    [],
+    []
+   ],
+   "snapshots": [
+    {
+     "facts": [
+      {
+       "id": "form_repair:run_tests:python runtests.py",
+       "family": "form_repair",
+       "high": false,
+       "drift": false,
+       "params": {
+        "intent": "run_tests",
+        "a": "python runtests.py",
+        "b_counts": {
+         "cd src && python runtests.py": 1,
+         "pytest": 1
+        },
+        "error_counts": {
+         "module_missing": 1
+        },
+        "b_fails": {},
+        "contra_streak": 0
+       },
+       "life": {
+        "key": "form_repair:run_tests:python runtests.py",
+        "high": false,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          [
+           "app.py"
+          ]
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 1,
+        "fire_den": 1,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "`python runtests.py \u2026` fails here with ModuleNotFoundError; `pytest \u2026` works."
+      },
+      {
+       "id": "arg_repair:pytest:sep:::",
+       "family": "arg_repair",
+       "high": false,
+       "drift": false,
+       "params": {
+        "form": "pytest",
+        "kind": "sep",
+        "param": "::",
+        "examples": {
+         "tests/app.py::Test::test_x tests/app.py": 1
+        }
+       },
+       "life": {
+        "key": "arg_repair:pytest:sep:::",
+        "high": false,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          [
+           "app.py"
+          ]
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 1,
+        "fire_den": 1,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "`pytest` takes dotted test labels (`module.Class.test`, not `module::Class::test`)."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "form_repair:run_tests:python runtests.py": [
+        "confirm",
+        true,
+        true
+       ],
+       "arg_repair:pytest:sep:::": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "form_repair:run_tests:python runtests.py",
+       "family": "form_repair",
+       "high": false,
+       "drift": false,
+       "params": {
+        "intent": "run_tests",
+        "a": "python runtests.py",
+        "b_counts": {
+         "cd src && python runtests.py": 2,
+         "pytest": 2
+        },
+        "error_counts": {
+         "module_missing": 2
+        },
+        "b_fails": {},
+        "contra_streak": 0
+       },
+       "life": {
+        "key": "form_repair:run_tests:python runtests.py",
+        "high": false,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          [
+           "app.py"
+          ]
+         ],
+         [
+          1,
+          [
+           "app.py"
+          ]
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 2,
+        "fire_den": 2,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "`python runtests.py \u2026` fails here with ModuleNotFoundError; `pytest \u2026` works."
+      },
+      {
+       "id": "arg_repair:pytest:sep:::",
+       "family": "arg_repair",
+       "high": false,
+       "drift": false,
+       "params": {
+        "form": "pytest",
+        "kind": "sep",
+        "param": "::",
+        "examples": {
+         "tests/app.py::Test::test_x tests/app.py": 2
+        }
+       },
+       "life": {
+        "key": "arg_repair:pytest:sep:::",
+        "high": false,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          [
+           "app.py"
+          ]
+         ],
+         [
+          1,
+          [
+           "app.py"
+          ]
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 2,
+        "fire_den": 2,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "`pytest` takes dotted test labels (`module.Class.test`, not `module::Class::test`)."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "form_repair:run_tests:python runtests.py": [
+        "confirm",
+        true,
+        true
+       ],
+       "arg_repair:pytest:sep:::": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "form_repair:run_tests:python runtests.py",
+       "family": "form_repair",
+       "high": false,
+       "drift": false,
+       "params": {
+        "intent": "run_tests",
+        "a": "python runtests.py",
+        "b_counts": {
+         "cd src && python runtests.py": 3,
+         "pytest": 3
+        },
+        "error_counts": {
+         "module_missing": 3
+        },
+        "b_fails": {},
+        "contra_streak": 0
+       },
+       "life": {
+        "key": "form_repair:run_tests:python runtests.py",
+        "high": false,
+        "drift": false,
+        "state": "ACTIVE",
+        "confirms": [
+         [
+          0,
+          [
+           "app.py"
+          ]
+         ],
+         [
+          1,
+          [
+           "app.py"
+          ]
+         ],
+         [
+          2,
+          [
+           "app.py"
+          ]
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 3,
+        "fire_den": 3,
+        "promoted_at": 2,
+        "retired_at": null
+       },
+       "state": "ACTIVE",
+       "claim": "`python runtests.py \u2026` fails here with ModuleNotFoundError; `pytest \u2026` works."
+      },
+      {
+       "id": "arg_repair:pytest:sep:::",
+       "family": "arg_repair",
+       "high": false,
+       "drift": false,
+       "params": {
+        "form": "pytest",
+        "kind": "sep",
+        "param": "::",
+        "examples": {
+         "tests/app.py::Test::test_x tests/app.py": 3
+        }
+       },
+       "life": {
+        "key": "arg_repair:pytest:sep:::",
+        "high": false,
+        "drift": false,
+        "state": "ACTIVE",
+        "confirms": [
+         [
+          0,
+          [
+           "app.py"
+          ]
+         ],
+         [
+          1,
+          [
+           "app.py"
+          ]
+         ],
+         [
+          2,
+          [
+           "app.py"
+          ]
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 3,
+        "fire_den": 3,
+        "promoted_at": 2,
+        "retired_at": null
+       },
+       "state": "ACTIVE",
+       "claim": "`pytest` takes dotted test labels (`module.Class.test`, not `module::Class::test`)."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "form_repair:run_tests:python runtests.py": [
+        "confirm",
+        true,
+        true
+       ],
+       "arg_repair:pytest:sep:::": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "generic",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "npm run lint"
+     },
+     "output": "ok",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && npm test"
+     },
+     "output": "3 passing",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/src/a.ts"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python3 -c 'import yaml'"
+     },
+     "output": "ModuleNotFoundError: No module named 'yaml'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git status --short"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "run_build",
+      "form": "npm run lint",
+      "head": "npm",
+      "prefix": "",
+      "segment": "npm run lint",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "run_tests",
+      "form": "cd src && npm test",
+      "head": "npm",
+      "prefix": "cd src &&",
+      "segment": "npm test",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": true,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 3,
+      "intent": "run_interpreter",
+      "form": "python3",
+      "head": "python3",
+      "prefix": "",
+      "segment": "python3 -c 'import yaml'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "module_missing",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [
+     "a.ts"
+    ],
+    "n_calls": 5,
+    "env": []
+   },
+   "injected": [
+    [],
+    [],
+    []
+   ],
+   "snapshots": [
+    {
+     "facts": [],
+     "render": "",
+     "last_digest": {
+      "verdicts": {}
+     }
+    },
+    {
+     "facts": [],
+     "render": "",
+     "last_digest": {
+      "verdicts": {}
+     }
+    },
+    {
+     "facts": [],
+     "render": "",
+     "last_digest": {
+      "verdicts": {}
+     }
+    }
+   ]
+  },
+  {
+   "name": "env_value",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python -c 'import app'"
+     },
+     "output": "RuntimeError: environment variable 'APP_MODE' is not set",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "export APP_MODE=prod && python -c 'import app'"
+     },
+     "output": "app imported",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "export APP_MODE=dev && python -c 'import app'"
+     },
+     "output": "RuntimeError: environment variable 'APP_MODE' is not set",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "run_interpreter",
+      "form": "python",
+      "head": "python",
+      "prefix": "",
+      "segment": "python -c 'import app'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "run_interpreter",
+      "form": "python",
+      "head": "python",
+      "prefix": "",
+      "segment": "python -c 'import app'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 2,
+      "intent": "run_interpreter",
+      "form": "python",
+      "head": "python",
+      "prefix": "",
+      "segment": "python -c 'import app'",
+      "hosts": [],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [],
+    "n_calls": 3,
+    "env": [
+     {
+      "need": [
+       "APP_MODE"
+      ],
+      "sets": {},
+      "ok": false,
+      "call": 0
+     },
+     {
+      "need": [],
+      "sets": {
+       "APP_MODE": "prod"
+      },
+      "ok": true,
+      "call": 1
+     },
+     {
+      "need": [
+       "APP_MODE"
+      ],
+      "sets": {
+       "APP_MODE": "dev"
+      },
+      "ok": false,
+      "call": 2
+     }
+    ]
+   },
+   "injected": [
+    [],
+    [],
+    []
+   ],
+   "snapshots": [
+    {
+     "facts": [
+      {
+       "id": "env_value:APP_MODE",
+       "family": "env_value",
+       "high": false,
+       "drift": false,
+       "params": {
+        "var": "APP_MODE",
+        "good": {
+         "prod": 1
+        },
+        "bad": {
+         "dev": 1
+        }
+       },
+       "life": {
+        "key": "env_value:APP_MODE",
+        "high": false,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 1,
+        "fire_den": 1,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "Code that imports the project needs `APP_MODE` set here: `APP_MODE=prod` works, `dev` does not."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "env_value:APP_MODE": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "env_value:APP_MODE",
+       "family": "env_value",
+       "high": false,
+       "drift": false,
+       "params": {
+        "var": "APP_MODE",
+        "good": {
+         "prod": 2
+        },
+        "bad": {
+         "dev": 2
+        }
+       },
+       "life": {
+        "key": "env_value:APP_MODE",
+        "high": false,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          []
+         ],
+         [
+          1,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 2,
+        "fire_den": 2,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "Code that imports the project needs `APP_MODE` set here: `APP_MODE=prod` works, `dev` does not."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "env_value:APP_MODE": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "env_value:APP_MODE",
+       "family": "env_value",
+       "high": false,
+       "drift": false,
+       "params": {
+        "var": "APP_MODE",
+        "good": {
+         "prod": 3
+        },
+        "bad": {
+         "dev": 3
+        }
+       },
+       "life": {
+        "key": "env_value:APP_MODE",
+        "high": false,
+        "drift": false,
+        "state": "ACTIVE",
+        "confirms": [
+         [
+          0,
+          []
+         ],
+         [
+          1,
+          []
+         ],
+         [
+          2,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 3,
+        "fire_den": 3,
+        "promoted_at": 2,
+        "retired_at": null
+       },
+       "state": "ACTIVE",
+       "claim": "Code that imports the project needs `APP_MODE` set here: `APP_MODE=prod` works, `dev` does not."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "env_value:APP_MODE": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "boundary",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "curl -sSf https://example.test/api"
+     },
+     "output": "curl: (6) Could not resolve host: example.test",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "curl -sSf https://elsewhere.test/api"
+     },
+     "output": "{\"ok\": true}",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "fetch_remote",
+      "form": "curl",
+      "head": "curl",
+      "prefix": "",
+      "segment": "curl -sSf https://example.test/api",
+      "hosts": [
+       "example.test"
+      ],
+      "probe": null,
+      "outcome": "name_resolution",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "fetch_remote",
+      "form": "curl",
+      "head": "curl",
+      "prefix": "",
+      "segment": "curl -sSf https://elsewhere.test/api",
+      "hosts": [
+       "elsewhere.test"
+      ],
+      "probe": null,
+      "outcome": "ran",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [],
+    "n_calls": 2,
+    "env": []
+   },
+   "injected": [
+    [],
+    [],
+    []
+   ],
+   "snapshots": [
+    {
+     "facts": [
+      {
+       "id": "boundary:fetch_remote",
+       "family": "boundary",
+       "high": true,
+       "drift": false,
+       "params": {
+        "hosts": {
+         "example.test": 1
+        }
+       },
+       "life": {
+        "key": "boundary:fetch_remote",
+        "high": true,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 1,
+        "fire_den": 1,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "Outbound connections to example.test are refused here; nothing can be fetched from them."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "boundary:fetch_remote": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "boundary:fetch_remote",
+       "family": "boundary",
+       "high": true,
+       "drift": false,
+       "params": {
+        "hosts": {
+         "example.test": 2
+        }
+       },
+       "life": {
+        "key": "boundary:fetch_remote",
+        "high": true,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          []
+         ],
+         [
+          1,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 2,
+        "fire_den": 2,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "Outbound connections to example.test are refused here; nothing can be fetched from them."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "boundary:fetch_remote": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "boundary:fetch_remote",
+       "family": "boundary",
+       "high": true,
+       "drift": false,
+       "params": {
+        "hosts": {
+         "example.test": 3
+        }
+       },
+       "life": {
+        "key": "boundary:fetch_remote",
+        "high": true,
+        "drift": false,
+        "state": "ACTIVE",
+        "confirms": [
+         [
+          0,
+          []
+         ],
+         [
+          1,
+          []
+         ],
+         [
+          2,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 3,
+        "fire_den": 3,
+        "promoted_at": 2,
+        "retired_at": null
+       },
+       "state": "ACTIVE",
+       "claim": "Outbound connections to example.test are refused here; nothing can be fetched from them."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "boundary:fetch_remote": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    }
+   ]
+  },
+  {
+   "name": "probe",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git ls-remote origin"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git for-each-ref --format='%(refname)'"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "vocab": "generic",
+   "root": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "obs": [
+     {
+      "call": 0,
+      "intent": "fetch_remote",
+      "form": "git ls-remote",
+      "head": "git",
+      "prefix": "",
+      "segment": "git ls-remote origin",
+      "hosts": [],
+      "probe": null,
+      "outcome": null,
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     },
+     {
+      "call": 1,
+      "intent": "probe_vcs_refs",
+      "form": "git for-each-ref",
+      "head": "git",
+      "prefix": "",
+      "segment": "git for-each-ref --format='%(refname)'",
+      "hosts": [],
+      "probe": "refs",
+      "outcome": "empty",
+      "labels": [],
+      "label_err": false,
+      "loaded": false,
+      "tests_ran": false,
+      "env": false,
+      "not_found": false
+     }
+    ],
+    "edited": [],
+    "n_calls": 2,
+    "env": []
+   },
+   "injected": [
+    [],
+    [],
+    []
+   ],
+   "snapshots": [
+    {
+     "facts": [
+      {
+       "id": "empty_probe:vcs_refs",
+       "family": "empty_probe",
+       "high": true,
+       "drift": false,
+       "params": {
+        "kinds": {
+         "refs": 1
+        }
+       },
+       "life": {
+        "key": "empty_probe:vcs_refs",
+        "high": true,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 1,
+        "fire_den": 1,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "This checkout has no git remote and no branches, tags or unreachable objects beyond HEAD; its history ends at the checked-out commit."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "empty_probe:vcs_refs": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "empty_probe:vcs_refs",
+       "family": "empty_probe",
+       "high": true,
+       "drift": false,
+       "params": {
+        "kinds": {
+         "refs": 2
+        }
+       },
+       "life": {
+        "key": "empty_probe:vcs_refs",
+        "high": true,
+        "drift": false,
+        "state": "CANDIDATE",
+        "confirms": [
+         [
+          0,
+          []
+         ],
+         [
+          1,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 2,
+        "fire_den": 2,
+        "promoted_at": null,
+        "retired_at": null
+       },
+       "state": "CANDIDATE",
+       "claim": "This checkout has no git remote and no branches, tags or unreachable objects beyond HEAD; its history ends at the checked-out commit."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "empty_probe:vcs_refs": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    },
+    {
+     "facts": [
+      {
+       "id": "empty_probe:vcs_refs",
+       "family": "empty_probe",
+       "high": true,
+       "drift": false,
+       "params": {
+        "kinds": {
+         "refs": 3
+        }
+       },
+       "life": {
+        "key": "empty_probe:vcs_refs",
+        "high": true,
+        "drift": false,
+        "state": "ACTIVE",
+        "confirms": [
+         [
+          0,
+          []
+         ],
+         [
+          1,
+          []
+         ],
+         [
+          2,
+          []
+         ]
+        ],
+        "contradicts": [],
+        "fire_num": 3,
+        "fire_den": 3,
+        "promoted_at": 2,
+        "retired_at": null
+       },
+       "state": "ACTIVE",
+       "claim": "This checkout has no git remote and no branches, tags or unreachable objects beyond HEAD; its history ends at the checked-out commit."
+      }
+     ],
+     "render": "",
+     "last_digest": {
+      "verdicts": {
+       "empty_probe:vcs_refs": [
+        "confirm",
+        true,
+        true
+       ]
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "templates": [
+  {
+   "in": [
+    "pytest -q tests",
+    "pytest   -q tests",
+    "  ",
+    "npm run build -- --silent"
+   ],
+   "out": [
+    "pytest -q tests",
+    "npm run build -- --silent"
+   ]
+  },
+  {
+   "in": [
+    "python /testbed/setup.py build_ext --inplace"
+   ],
+   "out": [
+    "python <path> build_ext --inplace"
+   ]
+  },
+  {
+   "in": [],
+   "out": []
+  }
+ ],
+ "error_signature": [
+  {
+   "out": "Traceback (most recent call last):\n  File \"/repo/app.py\", line 3\nValueError: bad",
+   "roots": [
+    "/repo",
+    "/repo/src"
+   ],
+   "sig": "Traceback (most recent call last):"
+  },
+  {
+   "out": "bash: line 1: pytest: command not found",
+   "roots": [
+    "/repo",
+    "/repo/src"
+   ],
+   "sig": "bash: line N: pytest: command not found"
+  },
+  {
+   "out": "ModuleNotFoundError: No module named 'yaml' at 0x7ffd",
+   "roots": [
+    "/repo",
+    "/repo/src"
+   ],
+   "sig": ""
+  },
+  {
+   "out": "error: opening /repo/src/x.ts: permission denied",
+   "roots": [
+    "/repo",
+    "/repo/src"
+   ],
+   "sig": "error: opening src/x.ts: permission denied"
+  },
+  {
+   "out": "all good",
+   "roots": [
+    "/repo",
+    "/repo/src"
+   ],
+   "sig": ""
+  }
+ ],
+ "relative": [
+  {
+   "text": "cd /repo && pytest -q",
+   "roots": [
+    "/repo"
+   ],
+   "out": "pytest -q"
+  },
+  {
+   "text": "cd /repo/src && npm test",
+   "roots": [
+    "/repo"
+   ],
+   "out": "cd src && npm test"
+  },
+  {
+   "text": "python /repo/tools/x.py --flag",
+   "roots": [
+    "/repo"
+   ],
+   "out": "python tools/x.py --flag"
+  },
+  {
+   "text": "pytest -q",
+   "roots": [
+    "/repo"
+   ],
+   "out": "pytest -q"
+  }
+ ],
+ "digests": [
+  {
+   "name": "generic",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "npm run lint"
+     },
+     "output": "ok",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && npm test"
+     },
+     "output": "3 passing",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/src/a.ts"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python3 -c 'import yaml'"
+     },
+     "output": "ModuleNotFoundError: No module named 'yaml'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git status --short"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "generic": true,
+   "start": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "iid": "t-0",
+    "resolved": true,
+    "edited_files": [
+     "a.ts"
+    ],
+    "n_cmds": 4,
+    "cmd_templates": [
+     "npm run lint",
+     "cd src && npm test",
+     "python3 -c 'import yaml'",
+     "git status --short"
+    ],
+    "check_commands": [
+     "npm run lint",
+     "cd src && npm test"
+    ],
+    "failed_commands": [
+     {
+      "cmd": "python3 -c 'import yaml'",
+      "error": ""
+     }
+    ],
+    "missing_command": false,
+    "missing_dependency": true,
+    "bad_usage": false,
+    "_ran_tests": true,
+    "_cmd_blob": "npm run lint\ncd src && npm test\npython3 -c 'import yaml'\ngit status --short",
+    "_out_blob": "ok\n3 passing\nModuleNotFoundError: No module named 'yaml'\n"
+   }
+  },
+  {
+   "name": "python",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python runtests.py"
+     },
+     "output": "Traceback (most recent call last):\nModuleNotFoundError: No module named 'app'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && python runtests.py"
+     },
+     "output": "Ran 3 tests in 0.01s\nOK",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/app.py"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py::Test::test_x"
+     },
+     "output": "ERROR: not found: tests/app.py::Test::test_x",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py -q"
+     },
+     "output": "3 passed",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "generic": false,
+   "start": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "digest": {
+    "iid": "t-0",
+    "resolved": true,
+    "edited_files": [
+     "app.py"
+    ],
+    "n_cmds": 4,
+    "cmd_templates": [
+     "python runtests.py",
+     "cd src && python runtests.py",
+     "pytest tests/app.py::Test::test_x",
+     "pytest tests/app.py -q"
+    ],
+    "test_invocations": [
+     "python runtests.py",
+     "cd src && python runtests.py",
+     "pytest tests/app.py::Test::test_x",
+     "pytest tests/app.py -q"
+    ],
+    "repro_written": false,
+    "importerror": true,
+    "badarg": false,
+    "_cmd_blob": "python runtests.py\ncd src && python runtests.py\npytest tests/app.py::Test::test_x\npytest tests/app.py -q",
+    "_out_blob": "Traceback (most recent call last):\nModuleNotFoundError: No module named 'app'\nRan 3 tests in 0.01s\nOK\nERROR: not found: tests/app.py::Test::test_x\n3 passed"
+   }
+  }
+ ],
+ "proposer_prompts": [
+  {
+   "name": "generic",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "npm run lint"
+     },
+     "output": "ok",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && npm test"
+     },
+     "output": "3 passing",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/src/a.ts"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python3 -c 'import yaml'"
+     },
+     "output": "ModuleNotFoundError: No module named 'yaml'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "git status --short"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "generic": true,
+   "start": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "existing": {
+    "npm-test": "Run `npm test`; it is the canonical suite.",
+    "lint": "Lint is `npm run lint`."
+   },
+   "features": [
+    "edited_at_least_two",
+    "ran_checks"
+   ],
+   "excerpts": [
+    "docker build -t app ."
+   ],
+   "external": [
+    "Python is run as `python3` here."
+   ],
+   "prompt": "You mine a DURABLE, REPO-SPECIFIC operating manual for a coding agent from a window of finished-session digests in ONE repository, whatever its language and toolchain. Each digest lists the files edited, command templates (paths relative to the repository), the build, test and lint commands run, the commands that failed with a normalized error line, and boolean flags \u2014 NOT raw logs or file contents. (Each session is called a task below.)\n\nEmit facts that a FUTURE session in this repository would want stated up front to avoid wasted commands: how to build, run or check it here and the exact invocation that works; the toolchain (interpreter, package manager, compiler, version manager) and how it is reached; a setup, install, code-generation or rebuild step that is needed (or NOT needed); an environment variable, service or working directory a command needs; where generated, configured or vendored files live; a command that fails here and the variant that works; a hook or formatter that rewrites files. Tests are one such topic, not the focus. Do NOT emit task-specific fixes or which lines to change \u2014 only durable facts true across sessions.\n\nFor EACH fact return an object with:\n  id          short kebab slug\n  claim       one sentence, what is true about this repo\n  injection   the exact line to inject into the agent prefix. State it as a DECLARATIVE fact about the repo (where things are, what the canonical command is). NEVER phrase it as a prohibition on exploration or tool use \u2014 do NOT tell the agent to avoid `find`/`grep`/searching/reading, or to skip discovering files. A prior that suppresses exploration silently breaks later tasks on a growing codebase where the agent must discover accreted files. State what is true; never forbid a tool.\n  high_stakes true if a wrong belief would break the run (test cmd, build step)\n  detector    {scope, confirm, contradict?, fired?} where scope is a python regex over the command string (or one of: ran_checks, ran_tests, command_failed, missing_command, missing_dependency, bad_usage, edited) selecting tasks where the fact is RELEVANT; confirm is a regex whose match in commands+output means the fact HELD this task; contradict (optional) a regex meaning the fact was FALSE this task; fired (optional) a predicate/regex meaning the waste the fact prevents actually occurred.\n  cite        list of >=2 iids from the window where confirm matches (grounding)\n\nReturn ONLY a JSON list of <=4 such objects. Be conservative: a fact you cannot ground with a working detector + 2 citations is worse than no fact.\n\nADDITIONALLY: if a durable repo fact would need evidence NOT present in the digest flags, first author an EXTRACTOR that surfaces it, then reference the extractor's feature name as your detector scope/fired. Extractors are cheap host-run predicates over raw commands/outputs.\nReturn a JSON OBJECT: {\"extractors\": [{name, kind, pattern}], \"facts\": [...]}\n  extractor.kind in {cmd_regex, out_regex, cmd_count}; pattern is a python regex.\n  A fact's detector.scope/fired may name any extractor you define here or a built-in (ran_checks, ran_tests, command_failed, missing_command, missing_dependency, bad_usage, edited).\n\nREVISION: the CONTRADICTION condition of an existing note may be corrected \u2014 and nothing else. Re-emit a note with the SAME id and the SAME claim/injection/high_stakes and the SAME detector.scope/detector.confirm/detector.fired, changing ONLY detector.contradict, to fix or tighten the regex that marks the fact FALSE this task. The note KEEPS its earned firing history and the new condition applies going forward. Re-emitting an id while changing any other field is rejected; extractors remain append-only.\n\nRepo: example/repo\n\nExisting facts, as `id: claim` (do NOT restate or paraphrase one under a NEW id; re-emit an id with ONLY detector.contradict changed to revise its contradiction condition, else use a NEW id for a fact not listed here):\n  - lint: Lint is `npm run lint`.\n  - npm-test: Run `npm test`; it is the canonical suite.\n\nExisting feature names:\nedited_at_least_two, ran_checks\n\nTask digests (chronological):\n[\n {\n  \"iid\": \"t-0\",\n  \"resolved\": true,\n  \"edited_files\": [\n   \"a.ts\"\n  ],\n  \"n_cmds\": 4,\n  \"cmd_templates\": [\n   \"npm run lint\",\n   \"cd src && npm test\",\n   \"python3 -c 'import yaml'\",\n   \"git status --short\"\n  ],\n  \"check_commands\": [\n   \"npm run lint\",\n   \"cd src && npm test\"\n  ],\n  \"failed_commands\": [\n   {\n    \"cmd\": \"python3 -c 'import yaml'\",\n    \"error\": \"\"\n   }\n  ],\n  \"missing_command\": false,\n  \"missing_dependency\": true,\n  \"bad_usage\": false\n }\n]\n\nRAW command excerpts from recent tasks the current extractors did NOT cover (author extractors to reach these if they hide a durable fact):\n  $ docker build -t app .\n\nFacts ALREADY injected before every task by a separate layer (do NOT restate or paraphrase them; author only facts beyond these):\n  - Python is run as `python3` here.\n\nReturn the JSON object {extractors, facts}:"
+  },
+  {
+   "name": "python",
+   "calls": [
+    {
+     "name": "Bash",
+     "args": {
+      "command": "python runtests.py"
+     },
+     "output": "Traceback (most recent call last):\nModuleNotFoundError: No module named 'app'",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "cd src && python runtests.py"
+     },
+     "output": "Ran 3 tests in 0.01s\nOK",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Edit",
+     "args": {
+      "file_path": "/tmp/dsh-microskills-parity-b17y_drb/app.py"
+     },
+     "output": "",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py::Test::test_x"
+     },
+     "output": "ERROR: not found: tests/app.py::Test::test_x",
+     "isError": true,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    },
+    {
+     "name": "Bash",
+     "args": {
+      "command": "pytest tests/app.py -q"
+     },
+     "output": "3 passed",
+     "isError": false,
+     "cwd": "/tmp/dsh-microskills-parity-b17y_drb"
+    }
+   ],
+   "generic": false,
+   "start": "/tmp/dsh-microskills-parity-b17y_drb",
+   "top": null,
+   "existing": [
+    "pytest-canonical",
+    "repro-redundant"
+   ],
+   "features": [
+    "edited_at_least_two",
+    "ran_checks"
+   ],
+   "excerpts": [
+    "python -m coverage run -m pytest"
+   ],
+   "external": [],
+   "prompt": "You mine a DURABLE, REPO-SPECIFIC operating manual for a coding agent from a window of finished-task digests in ONE repository. Each digest lists edited files, command templates, test invocations, and boolean flags \u2014 NOT raw logs.\n\nEmit facts that a FUTURE task in this repo would want stated up front to avoid wasted commands: the canonical test invocation, whether a repro is redundant, a required env var, a build/reinstall step that's needed (or NOT needed), a lint/format hook that reformats, etc. Do NOT emit task-specific fixes or which lines to change \u2014 only durable interface facts true across tasks.\n\nFor EACH fact return an object with:\n  id          short kebab slug\n  claim       one sentence, what is true about this repo\n  injection   the exact line to inject into the agent prefix. State it as a DECLARATIVE fact about the repo (where things are, what the canonical command is). NEVER phrase it as a prohibition on exploration or tool use \u2014 do NOT tell the agent to avoid `find`/`grep`/searching/reading, or to skip discovering files. A prior that suppresses exploration silently breaks later tasks on a growing codebase where the agent must discover accreted files. State what is true; never forbid a tool.\n  high_stakes true if a wrong belief would break the run (test cmd, build step)\n  detector    {scope, confirm, contradict?, fired?} where scope is a python regex over the command string (or one of: repro_written, importerror, badarg, ran_tests) selecting tasks where the fact is RELEVANT; confirm is a regex whose match in commands+output means the fact HELD this task; contradict (optional) a regex meaning the fact was FALSE this task; fired (optional) a predicate/regex meaning the waste the fact prevents actually occurred.\n  cite        list of >=2 iids from the window where confirm matches (grounding)\n\nReturn ONLY a JSON list of <=4 such objects. Be conservative: a fact you cannot ground with a working detector + 2 citations is worse than no fact.\n\nADDITIONALLY: if a durable repo fact would need evidence NOT present in the digest flags, first author an EXTRACTOR that surfaces it, then reference the extractor's feature name as your detector scope/fired. Extractors are cheap host-run predicates over raw commands/outputs.\nReturn a JSON OBJECT: {\"extractors\": [{name, kind, pattern}], \"facts\": [...]}\n  extractor.kind in {cmd_regex, out_regex, cmd_count}; pattern is a python regex.\n  A fact's detector.scope/fired may name any extractor you define here or a built-in (repro_written, importerror, badarg, ran_tests).\n\nREVISION: the CONTRADICTION condition of an existing note may be corrected \u2014 and nothing else. Re-emit a note with the SAME id and the SAME claim/injection/high_stakes and the SAME detector.scope/detector.confirm/detector.fired, changing ONLY detector.contradict, to fix or tighten the regex that marks the fact FALSE this task. The note KEEPS its earned firing history and the new condition applies going forward. Re-emitting an id while changing any other field is rejected; extractors remain append-only.\n\nRepo: example/repo\n\nExisting fact ids (re-emit an id with ONLY detector.contradict changed to revise its contradiction condition, else use a NEW id):\npytest-canonical, repro-redundant\n\nExisting feature names:\nedited_at_least_two, ran_checks\n\nTask digests (chronological):\n[\n {\n  \"iid\": \"t-0\",\n  \"resolved\": true,\n  \"edited_files\": [\n   \"app.py\"\n  ],\n  \"n_cmds\": 4,\n  \"cmd_templates\": [\n   \"python runtests.py\",\n   \"cd src && python runtests.py\",\n   \"pytest tests/app.py::Test::test_x\",\n   \"pytest tests/app.py -q\"\n  ],\n  \"test_invocations\": [\n   \"python runtests.py\",\n   \"cd src && python runtests.py\",\n   \"pytest tests/app.py::Test::test_x\",\n   \"pytest tests/app.py -q\"\n  ],\n  \"repro_written\": false,\n  \"importerror\": true,\n  \"badarg\": false\n }\n]\n\nRAW command excerpts from recent tasks the current extractors did NOT cover (author extractors to reach these if they hide a durable fact):\n  $ python -m coverage run -m pytest\n\nReturn the JSON object {extractors, facts}:"
+  }
+ ],
+ "proposer_system": {
+  "default": "You mine a DURABLE, REPO-SPECIFIC operating manual for a coding agent from a window of finished-task digests in ONE repository. Each digest lists edited files, command templates, test invocations, and boolean flags \u2014 NOT raw logs.\n\nEmit facts that a FUTURE task in this repo would want stated up front to avoid wasted commands: the canonical test invocation, whether a repro is redundant, a required env var, a build/reinstall step that's needed (or NOT needed), a lint/format hook that reformats, etc. Do NOT emit task-specific fixes or which lines to change \u2014 only durable interface facts true across tasks.\n\nFor EACH fact return an object with:\n  id          short kebab slug\n  claim       one sentence, what is true about this repo\n  injection   the exact line to inject into the agent prefix. State it as a DECLARATIVE fact about the repo (where things are, what the canonical command is). NEVER phrase it as a prohibition on exploration or tool use \u2014 do NOT tell the agent to avoid `find`/`grep`/searching/reading, or to skip discovering files. A prior that suppresses exploration silently breaks later tasks on a growing codebase where the agent must discover accreted files. State what is true; never forbid a tool.\n  high_stakes true if a wrong belief would break the run (test cmd, build step)\n  detector    {scope, confirm, contradict?, fired?} where scope is a python regex over the command string (or one of: repro_written, importerror, badarg, ran_tests) selecting tasks where the fact is RELEVANT; confirm is a regex whose match in commands+output means the fact HELD this task; contradict (optional) a regex meaning the fact was FALSE this task; fired (optional) a predicate/regex meaning the waste the fact prevents actually occurred.\n  cite        list of >=2 iids from the window where confirm matches (grounding)\n\nReturn ONLY a JSON list of <=4 such objects. Be conservative: a fact you cannot ground with a working detector + 2 citations is worse than no fact.\n\nADDITIONALLY: if a durable repo fact would need evidence NOT present in the digest flags, first author an EXTRACTOR that surfaces it, then reference the extractor's feature name as your detector scope/fired. Extractors are cheap host-run predicates over raw commands/outputs.\nReturn a JSON OBJECT: {\"extractors\": [{name, kind, pattern}], \"facts\": [...]}\n  extractor.kind in {cmd_regex, out_regex, cmd_count}; pattern is a python regex.\n  A fact's detector.scope/fired may name any extractor you define here or a built-in (repro_written, importerror, badarg, ran_tests).\n\nREVISION: the CONTRADICTION condition of an existing note may be corrected \u2014 and nothing else. Re-emit a note with the SAME id and the SAME claim/injection/high_stakes and the SAME detector.scope/detector.confirm/detector.fired, changing ONLY detector.contradict, to fix or tighten the regex that marks the fact FALSE this task. The note KEEPS its earned firing history and the new condition applies going forward. Re-emitting an id while changing any other field is rejected; extractors remain append-only.",
+  "generic": "You mine a DURABLE, REPO-SPECIFIC operating manual for a coding agent from a window of finished-session digests in ONE repository, whatever its language and toolchain. Each digest lists the files edited, command templates (paths relative to the repository), the build, test and lint commands run, the commands that failed with a normalized error line, and boolean flags \u2014 NOT raw logs or file contents. (Each session is called a task below.)\n\nEmit facts that a FUTURE session in this repository would want stated up front to avoid wasted commands: how to build, run or check it here and the exact invocation that works; the toolchain (interpreter, package manager, compiler, version manager) and how it is reached; a setup, install, code-generation or rebuild step that is needed (or NOT needed); an environment variable, service or working directory a command needs; where generated, configured or vendored files live; a command that fails here and the variant that works; a hook or formatter that rewrites files. Tests are one such topic, not the focus. Do NOT emit task-specific fixes or which lines to change \u2014 only durable facts true across sessions.\n\nFor EACH fact return an object with:\n  id          short kebab slug\n  claim       one sentence, what is true about this repo\n  injection   the exact line to inject into the agent prefix. State it as a DECLARATIVE fact about the repo (where things are, what the canonical command is). NEVER phrase it as a prohibition on exploration or tool use \u2014 do NOT tell the agent to avoid `find`/`grep`/searching/reading, or to skip discovering files. A prior that suppresses exploration silently breaks later tasks on a growing codebase where the agent must discover accreted files. State what is true; never forbid a tool.\n  high_stakes true if a wrong belief would break the run (test cmd, build step)\n  detector    {scope, confirm, contradict?, fired?} where scope is a python regex over the command string (or one of: ran_checks, ran_tests, command_failed, missing_command, missing_dependency, bad_usage, edited) selecting tasks where the fact is RELEVANT; confirm is a regex whose match in commands+output means the fact HELD this task; contradict (optional) a regex meaning the fact was FALSE this task; fired (optional) a predicate/regex meaning the waste the fact prevents actually occurred.\n  cite        list of >=2 iids from the window where confirm matches (grounding)\n\nReturn ONLY a JSON list of <=4 such objects. Be conservative: a fact you cannot ground with a working detector + 2 citations is worse than no fact.\n\nADDITIONALLY: if a durable repo fact would need evidence NOT present in the digest flags, first author an EXTRACTOR that surfaces it, then reference the extractor's feature name as your detector scope/fired. Extractors are cheap host-run predicates over raw commands/outputs.\nReturn a JSON OBJECT: {\"extractors\": [{name, kind, pattern}], \"facts\": [...]}\n  extractor.kind in {cmd_regex, out_regex, cmd_count}; pattern is a python regex.\n  A fact's detector.scope/fired may name any extractor you define here or a built-in (ran_checks, ran_tests, command_failed, missing_command, missing_dependency, bad_usage, edited).\n\nREVISION: the CONTRADICTION condition of an existing note may be corrected \u2014 and nothing else. Re-emit a note with the SAME id and the SAME claim/injection/high_stakes and the SAME detector.scope/detector.confirm/detector.fired, changing ONLY detector.contradict, to fix or tighten the regex that marks the fact FALSE this task. The note KEEPS its earned firing history and the new condition applies going forward. Re-emitting an id while changing any other field is rejected; extractors remain append-only.",
+  "generic_predicates": [
+   "ran_checks",
+   "ran_tests",
+   "command_failed",
+   "missing_command",
+   "missing_dependency",
+   "bad_usage",
+   "edited"
+  ]
+ },
+ "parse_payload": [
+  {
+   "raw": "{\"extractors\": [{\"name\": \"ran_docker\", \"kind\": \"cmd_regex\", \"pattern\": \"docker \"}], \"facts\": [{\"id\": \"x\", \"detector\": {\"scope\": \"ran_docker\"}}]}",
+   "extractors": [
+    {
+     "name": "ran_docker",
+     "kind": "cmd_regex",
+     "pattern": "docker "
+    }
+   ],
+   "facts": [
+    {
+     "id": "x",
+     "detector": {
+      "scope": "ran_docker"
+     }
+    }
+   ]
+  },
+  {
+   "raw": "prose before {\"facts\": [{\"id\": \"a\", \"detector\": {}}], \"extractors\": [{\"name\": \"n\"}]} after",
+   "extractors": [],
+   "facts": []
+  },
+  {
+   "raw": "not json at all",
+   "extractors": [],
+   "facts": []
+  },
+  {
+   "raw": "{\"facts\": []}",
+   "extractors": [],
+   "facts": []
+  },
+  {
+   "raw": "{\"extractors\": [{\"pattern\": \"x\"}], \"facts\": [{\"id\": \"a\", \"detector\": {}}, {\"noid\": 1}]}",
+   "extractors": [],
+   "facts": []
+  }
+ ],
+ "detectors": [
+  {
+   "spec": {
+    "scope": "ran_checks",
+    "confirm": "npm test",
+    "fired": "ran_checks"
+   },
+   "features": {
+    "edited_at_least_two": true
+   },
+   "digest": {
+    "iid": "t-0",
+    "resolved": true,
+    "edited_files": [
+     "a.ts"
+    ],
+    "n_cmds": 4,
+    "cmd_templates": [
+     "npm run lint",
+     "cd src && npm test",
+     "python3 -c 'import yaml'",
+     "git status --short"
+    ],
+    "check_commands": [
+     "npm run lint",
+     "cd src && npm test"
+    ],
+    "failed_commands": [
+     {
+      "cmd": "python3 -c 'import yaml'",
+      "error": ""
+     }
+    ],
+    "missing_command": false,
+    "missing_dependency": true,
+    "bad_usage": false,
+    "_ran_tests": true,
+    "_cmd_blob": "npm run lint\ncd src && npm test\npython3 -c 'import yaml'\ngit status --short",
+    "_out_blob": "ok\n3 passing\nModuleNotFoundError: No module named 'yaml'\n"
+   },
+   "verdict": "confirm",
+   "fired": true,
+   "exercised": true
+  },
+  {
+   "spec": {
+    "scope": "cmd_regex",
+    "confirm": "npm run lint"
+   },
+   "features": {
+    "edited_at_least_two": true
+   },
+   "digest": {
+    "iid": "t-0",
+    "resolved": true,
+    "edited_files": [
+     "a.ts"
+    ],
+    "n_cmds": 4,
+    "cmd_templates": [
+     "npm run lint",
+     "cd src && npm test",
+     "python3 -c 'import yaml'",
+     "git status --short"
+    ],
+    "check_commands": [
+     "npm run lint",
+     "cd src && npm test"
+    ],
+    "failed_commands": [
+     {
+      "cmd": "python3 -c 'import yaml'",
+      "error": ""
+     }
+    ],
+    "missing_command": false,
+    "missing_dependency": true,
+    "bad_usage": false,
+    "_ran_tests": true,
+    "_cmd_blob": "npm run lint\ncd src && npm test\npython3 -c 'import yaml'\ngit status --short",
+    "_out_blob": "ok\n3 passing\nModuleNotFoundError: No module named 'yaml'\n"
+   },
+   "verdict": null,
+   "fired": false,
+   "exercised": false
+  },
+  {
+   "spec": {
+    "scope": "missing_dependency",
+    "confirm": "No module named 'yaml'"
+   },
+   "features": {
+    "edited_at_least_two": true
+   },
+   "digest": {
+    "iid": "t-0",
+    "resolved": true,
+    "edited_files": [
+     "a.ts"
+    ],
+    "n_cmds": 4,
+    "cmd_templates": [
+     "npm run lint",
+     "cd src && npm test",
+     "python3 -c 'import yaml'",
+     "git status --short"
+    ],
+    "check_commands": [
+     "npm run lint",
+     "cd src && npm test"
+    ],
+    "failed_commands": [
+     {
+      "cmd": "python3 -c 'import yaml'",
+      "error": ""
+     }
+    ],
+    "missing_command": false,
+    "missing_dependency": true,
+    "bad_usage": false,
+    "_ran_tests": true,
+    "_cmd_blob": "npm run lint\ncd src && npm test\npython3 -c 'import yaml'\ngit status --short",
+    "_out_blob": "ok\n3 passing\nModuleNotFoundError: No module named 'yaml'\n"
+   },
+   "verdict": "confirm",
+   "fired": true,
+   "exercised": true
+  },
+  {
+   "spec": {
+    "scope": "ran_checks",
+    "confirm": "make test",
+    "contradict": "npm test"
+   },
+   "features": {
+    "edited_at_least_two": true
+   },
+   "digest": {
+    "iid": "t-0",
+    "resolved": true,
+    "edited_files": [
+     "a.ts"
+    ],
+    "n_cmds": 4,
+    "cmd_templates": [
+     "npm run lint",
+     "cd src && npm test",
+     "python3 -c 'import yaml'",
+     "git status --short"
+    ],
+    "check_commands": [
+     "npm run lint",
+     "cd src && npm test"
+    ],
+    "failed_commands": [
+     {
+      "cmd": "python3 -c 'import yaml'",
+      "error": ""
+     }
+    ],
+    "missing_command": false,
+    "missing_dependency": true,
+    "bad_usage": false,
+    "_ran_tests": true,
+    "_cmd_blob": "npm run lint\ncd src && npm test\npython3 -c 'import yaml'\ngit status --short",
+    "_out_blob": "ok\n3 passing\nModuleNotFoundError: No module named 'yaml'\n"
+   },
+   "verdict": "contradict",
+   "fired": true,
+   "exercised": true
+  },
+  {
+   "spec": {
+    "scope": "ran_tests",
+    "fired": "missing_command"
+   },
+   "features": {
+    "edited_at_least_two": true
+   },
+   "digest": {
+    "iid": "t-0",
+    "resolved": true,
+    "edited_files": [
+     "a.ts"
+    ],
+    "n_cmds": 4,
+    "cmd_templates": [
+     "npm run lint",
+     "cd src && npm test",
+     "python3 -c 'import yaml'",
+     "git status --short"
+    ],
+    "check_commands": [
+     "npm run lint",
+     "cd src && npm test"
+    ],
+    "failed_commands": [
+     {
+      "cmd": "python3 -c 'import yaml'",
+      "error": ""
+     }
+    ],
+    "missing_command": false,
+    "missing_dependency": true,
+    "bad_usage": false,
+    "_ran_tests": true,
+    "_cmd_blob": "npm run lint\ncd src && npm test\npython3 -c 'import yaml'\ngit status --short",
+    "_out_blob": "ok\n3 passing\nModuleNotFoundError: No module named 'yaml'\n"
+   },
+   "verdict": null,
+   "fired": false,
+   "exercised": true
+  }
+ ],
+ "constants": {
+  "lifecycle": {
+   "K_PROMOTE": 3,
+   "GAMMA": 0.8,
+   "LAMBDA": 5.0,
+   "SCORE_FLOOR": 0.0,
+   "HARD_KILL": true,
+   "FIRE_GATE": 0.4,
+   "FIRE_MIN_N": 4
+  },
+  "envfacts": {
+   "STATE_SUBDIR": "envfacts_state",
+   "MAX_FACTS": 4,
+   "MAX_TOKENS": 150,
+   "HEADER": "# environment facts learned from earlier tasks in this checkout",
+   "GENERIC_HEADER": "# environment facts learned from earlier sessions in this repository",
+   "CONTRADICT_STREAK": 2
+  },
+  "distiller": {
+   "PROPOSE_EVERY": 8,
+   "WINDOW": 8,
+   "MAX_CANDS": 4,
+   "MIN_CITE": 2,
+   "MAX_EXTRACTORS": 12,
+   "RAW_SAMPLE": 3,
+   "ABSTAIN_GATE": 0.5,
+   "STATE_SUBDIR": "manual_state",
+   "BLOB_CAP": 20000
+  }
+ }
+}

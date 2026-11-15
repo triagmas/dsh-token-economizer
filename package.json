@@ -1,0 +1,81 @@
+{
+  "name": "dsh-token-economizer",
+  "version": "0.1.0",
+  "description": "Experience-driven cost control for DeepSeek Harness: micro-skills, tool pruning, and a failure-loop guard with local-only measurement.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "triagmas",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/triagmas/dsh-token-economizer.git"
+  },
+  "homepage": "https://github.com/triagmas/dsh-token-economizer#readme",
+  "bugs": {
+    "url": "https://github.com/triagmas/dsh-token-economizer/issues"
+  },
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "dsh-plugin",
+    "token-economizer",
+    "micro-skills",
+    "tool-pruning",
+    "loop-guard"
+  ],
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./client/index.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "lib/**/*.js",
+    "client/index.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "REVIEW.md",
+    "LICENSE",
+    "NOTICE",
+    "docs/**/*.md",
+    "tests/**/*.mjs",
+    "benchmark/**/*"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.0 <0.3.0"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test tests/*.test.mjs",
+    "smoke": "node tests/smoke.mjs",
+    "benchmark": "node benchmark/run.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/schemastery": "*"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/schemastery": {
+      "optional": true
+    }
+  }
+}

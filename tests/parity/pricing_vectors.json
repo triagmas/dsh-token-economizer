@@ -1,0 +1,4188 @@
+{
+  "generatedBy": "tests/parity/generate_pricing_vectors.py",
+  "upstream": "microsoft/TokenEconomizer",
+  "upstreamCommit": "7042ea89dd5e5ecbc67ad865ad6e256e61be8bf0",
+  "expectedCommit": "7042ea89dd5e5ecbc67ad865ad6e256e61be8bf0",
+  "python": "3.14.4",
+  "vectorCount": 198,
+  "models": [
+    "claude-haiku-4-5",
+    "claude-opus-4-6",
+    "claude-opus-4-7",
+    "claude-opus-4-8",
+    "claude-opus-5",
+    "claude-sonnet-4-5",
+    "claude-sonnet-4-6",
+    "claude-sonnet-5",
+    "codex-mini-latest",
+    "gemini-2.5-pro",
+    "gemini-3-flash-preview",
+    "gemini-3.1-pro-preview",
+    "gemini-3.5-flash",
+    "gemini-3.6-flash",
+    "gpt-5",
+    "gpt-5-codex",
+    "gpt-5-mini",
+    "gpt-5.1",
+    "gpt-5.1-codex",
+    "gpt-5.1-codex-max",
+    "gpt-5.2-codex",
+    "gpt-5.3-codex",
+    "gpt-5.4",
+    "gpt-5.4-mini",
+    "gpt-5.5",
+    "gpt-5.6-luna",
+    "gpt-5.6-sol",
+    "gpt-5.6-terra",
+    "mai-code-1-flash-picker",
+    "claude-opus-4.8",
+    "claude-sonnet-5.5",
+    "claude-fable-5-1",
+    "openrouter/anthropic/claude-haiku-4.5"
+  ],
+  "vectors": [
+    {
+      "id": "claude-haiku-4-5::base",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-4-5::cache_1h_flat",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-4-5::cache_1h_nested",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-4-5::cache_1h_clamped",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-4-5::zero",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-haiku-4-5::no_breakdown",
+      "model": "claude-haiku-4-5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-6::base",
+      "model": "claude-opus-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-6::cache_1h_flat",
+      "model": "claude-opus-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-6::cache_1h_nested",
+      "model": "claude-opus-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-6::cache_1h_clamped",
+      "model": "claude-opus-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-6::zero",
+      "model": "claude-opus-4-6",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-6::no_breakdown",
+      "model": "claude-opus-4-6",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-7::base",
+      "model": "claude-opus-4-7",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-7::cache_1h_flat",
+      "model": "claude-opus-4-7",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-7::cache_1h_nested",
+      "model": "claude-opus-4-7",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-7::cache_1h_clamped",
+      "model": "claude-opus-4-7",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-7::zero",
+      "model": "claude-opus-4-7",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-7::no_breakdown",
+      "model": "claude-opus-4-7",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-8::base",
+      "model": "claude-opus-4-8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-8::cache_1h_flat",
+      "model": "claude-opus-4-8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-8::cache_1h_nested",
+      "model": "claude-opus-4-8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-8::cache_1h_clamped",
+      "model": "claude-opus-4-8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-8::zero",
+      "model": "claude-opus-4-8",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4-8::no_breakdown",
+      "model": "claude-opus-4-8",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-5::base",
+      "model": "claude-opus-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-5::cache_1h_flat",
+      "model": "claude-opus-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-5::cache_1h_nested",
+      "model": "claude-opus-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-5::cache_1h_clamped",
+      "model": "claude-opus-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-5::zero",
+      "model": "claude-opus-5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-5::no_breakdown",
+      "model": "claude-opus-5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-5::base",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-5::cache_1h_flat",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-5::cache_1h_nested",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-5::cache_1h_clamped",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-5::zero",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-5::no_breakdown",
+      "model": "claude-sonnet-4-5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-6::base",
+      "model": "claude-sonnet-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-6::cache_1h_flat",
+      "model": "claude-sonnet-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-6::cache_1h_nested",
+      "model": "claude-sonnet-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-6::cache_1h_clamped",
+      "model": "claude-sonnet-4-6",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-6::zero",
+      "model": "claude-sonnet-4-6",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-4-6::no_breakdown",
+      "model": "claude-sonnet-4-6",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5::base",
+      "model": "claude-sonnet-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5::cache_1h_flat",
+      "model": "claude-sonnet-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5::cache_1h_nested",
+      "model": "claude-sonnet-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5::cache_1h_clamped",
+      "model": "claude-sonnet-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5::zero",
+      "model": "claude-sonnet-5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5::no_breakdown",
+      "model": "claude-sonnet-5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "codex-mini-latest::base",
+      "model": "codex-mini-latest",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 19800.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.25,
+          "cacheWrite": 1.0,
+          "output": 4.0
+        }
+      }
+    },
+    {
+      "id": "codex-mini-latest::cache_1h_flat",
+      "model": "codex-mini-latest",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 19800.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.25,
+          "cacheWrite": 1.0,
+          "output": 4.0
+        }
+      }
+    },
+    {
+      "id": "codex-mini-latest::cache_1h_nested",
+      "model": "codex-mini-latest",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 19800.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.25,
+          "cacheWrite": 1.0,
+          "output": 4.0
+        }
+      }
+    },
+    {
+      "id": "codex-mini-latest::cache_1h_clamped",
+      "model": "codex-mini-latest",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 19800.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.25,
+          "cacheWrite": 1.0,
+          "output": 4.0
+        }
+      }
+    },
+    {
+      "id": "codex-mini-latest::zero",
+      "model": "codex-mini-latest",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.25,
+          "cacheWrite": 1.0,
+          "output": 4.0
+        }
+      }
+    },
+    {
+      "id": "codex-mini-latest::no_breakdown",
+      "model": "codex-mini-latest",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.25,
+          "cacheWrite": 1.0,
+          "output": 4.0
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-pro::base",
+      "model": "gemini-2.5-pro",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 13008.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.096,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-pro::cache_1h_flat",
+      "model": "gemini-2.5-pro",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 13008.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.096,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-pro::cache_1h_nested",
+      "model": "gemini-2.5-pro",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 13008.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.096,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-pro::cache_1h_clamped",
+      "model": "gemini-2.5-pro",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 13008.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.096,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-pro::zero",
+      "model": "gemini-2.5-pro",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.096,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gemini-2.5-pro::no_breakdown",
+      "model": "gemini-2.5-pro",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.096,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview::base",
+      "model": "gemini-3-flash-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview::cache_1h_flat",
+      "model": "gemini-3-flash-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview::cache_1h_nested",
+      "model": "gemini-3-flash-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview::cache_1h_clamped",
+      "model": "gemini-3-flash-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview::zero",
+      "model": "gemini-3-flash-preview",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3-flash-preview::no_breakdown",
+      "model": "gemini-3-flash-preview",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-pro-preview::base",
+      "model": "gemini-3.1-pro-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-pro-preview::cache_1h_flat",
+      "model": "gemini-3.1-pro-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-pro-preview::cache_1h_nested",
+      "model": "gemini-3.1-pro-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-pro-preview::cache_1h_clamped",
+      "model": "gemini-3.1-pro-preview",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-pro-preview::zero",
+      "model": "gemini-3.1-pro-preview",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.1-pro-preview::no_breakdown",
+      "model": "gemini-3.1-pro-preview",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.5-flash::base",
+      "model": "gemini-3.5-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.5-flash::cache_1h_flat",
+      "model": "gemini-3.5-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.5-flash::cache_1h_nested",
+      "model": "gemini-3.5-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.5-flash::cache_1h_clamped",
+      "model": "gemini-3.5-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.5-flash::zero",
+      "model": "gemini-3.5-flash",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.5-flash::no_breakdown",
+      "model": "gemini-3.5-flash",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.6-flash::base",
+      "model": "gemini-3.6-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 10500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 5.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.6-flash::cache_1h_flat",
+      "model": "gemini-3.6-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 10500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 5.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.6-flash::cache_1h_nested",
+      "model": "gemini-3.6-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 10500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 5.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.6-flash::cache_1h_clamped",
+      "model": "gemini-3.6-flash",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 10500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 5.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.6-flash::zero",
+      "model": "gemini-3.6-flash",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 5.0
+        }
+      }
+    },
+    {
+      "id": "gemini-3.6-flash::no_breakdown",
+      "model": "gemini-3.6-flash",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 5.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5::base",
+      "model": "gpt-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5::cache_1h_flat",
+      "model": "gpt-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5::cache_1h_nested",
+      "model": "gpt-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5::cache_1h_clamped",
+      "model": "gpt-5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5::zero",
+      "model": "gpt-5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5::no_breakdown",
+      "model": "gpt-5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-codex::base",
+      "model": "gpt-5-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-codex::cache_1h_flat",
+      "model": "gpt-5-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-codex::cache_1h_nested",
+      "model": "gpt-5-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-codex::cache_1h_clamped",
+      "model": "gpt-5-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-codex::zero",
+      "model": "gpt-5-codex",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-codex::no_breakdown",
+      "model": "gpt-5-codex",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-mini::base",
+      "model": "gpt-5-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 12240.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.08,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-mini::cache_1h_flat",
+      "model": "gpt-5-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 12240.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.08,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-mini::cache_1h_nested",
+      "model": "gpt-5-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 12240.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.08,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-mini::cache_1h_clamped",
+      "model": "gpt-5-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 12240.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.08,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-mini::zero",
+      "model": "gpt-5-mini",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.08,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5-mini::no_breakdown",
+      "model": "gpt-5-mini",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.08,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1::base",
+      "model": "gpt-5.1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1::cache_1h_flat",
+      "model": "gpt-5.1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1::cache_1h_nested",
+      "model": "gpt-5.1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1::cache_1h_clamped",
+      "model": "gpt-5.1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1::zero",
+      "model": "gpt-5.1",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1::no_breakdown",
+      "model": "gpt-5.1",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex::base",
+      "model": "gpt-5.1-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex::cache_1h_flat",
+      "model": "gpt-5.1-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex::cache_1h_nested",
+      "model": "gpt-5.1-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex::cache_1h_clamped",
+      "model": "gpt-5.1-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex::zero",
+      "model": "gpt-5.1-codex",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex::no_breakdown",
+      "model": "gpt-5.1-codex",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex-max::base",
+      "model": "gpt-5.1-codex-max",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex-max::cache_1h_flat",
+      "model": "gpt-5.1-codex-max",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex-max::cache_1h_nested",
+      "model": "gpt-5.1-codex-max",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex-max::cache_1h_clamped",
+      "model": "gpt-5.1-codex-max",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex-max::zero",
+      "model": "gpt-5.1-codex-max",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.1-codex-max::no_breakdown",
+      "model": "gpt-5.1-codex-max",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.2-codex::base",
+      "model": "gpt-5.2-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.2-codex::cache_1h_flat",
+      "model": "gpt-5.2-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.2-codex::cache_1h_nested",
+      "model": "gpt-5.2-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.2-codex::cache_1h_clamped",
+      "model": "gpt-5.2-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16200.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.2-codex::zero",
+      "model": "gpt-5.2-codex",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.2-codex::no_breakdown",
+      "model": "gpt-5.2-codex",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.3-codex::base",
+      "model": "gpt-5.3-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 13060.8,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0971,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.3-codex::cache_1h_flat",
+      "model": "gpt-5.3-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 13060.8,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0971,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.3-codex::cache_1h_nested",
+      "model": "gpt-5.3-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 13060.8,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0971,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.3-codex::cache_1h_clamped",
+      "model": "gpt-5.3-codex",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 13060.8,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0971,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.3-codex::zero",
+      "model": "gpt-5.3-codex",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0971,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.3-codex::no_breakdown",
+      "model": "gpt-5.3-codex",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0971,
+          "cacheWrite": 0.0,
+          "output": 8.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4::base",
+      "model": "gpt-5.4",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4::cache_1h_flat",
+      "model": "gpt-5.4",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4::cache_1h_nested",
+      "model": "gpt-5.4",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4::cache_1h_clamped",
+      "model": "gpt-5.4",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4::zero",
+      "model": "gpt-5.4",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4::no_breakdown",
+      "model": "gpt-5.4",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4-mini::base",
+      "model": "gpt-5.4-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4-mini::cache_1h_flat",
+      "model": "gpt-5.4-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4-mini::cache_1h_nested",
+      "model": "gpt-5.4-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4-mini::cache_1h_clamped",
+      "model": "gpt-5.4-mini",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4-mini::zero",
+      "model": "gpt-5.4-mini",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.4-mini::no_breakdown",
+      "model": "gpt-5.4-mini",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.5::base",
+      "model": "gpt-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.5::cache_1h_flat",
+      "model": "gpt-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.5::cache_1h_nested",
+      "model": "gpt-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.5::cache_1h_clamped",
+      "model": "gpt-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 11400.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.5::zero",
+      "model": "gpt-5.5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.5::no_breakdown",
+      "model": "gpt-5.5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-luna::base",
+      "model": "gpt-5.6-luna",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-luna::cache_1h_flat",
+      "model": "gpt-5.6-luna",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-luna::cache_1h_nested",
+      "model": "gpt-5.6-luna",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-luna::cache_1h_clamped",
+      "model": "gpt-5.6-luna",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-luna::zero",
+      "model": "gpt-5.6-luna",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-luna::no_breakdown",
+      "model": "gpt-5.6-luna",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-sol::base",
+      "model": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-sol::cache_1h_flat",
+      "model": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-sol::cache_1h_nested",
+      "model": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-sol::cache_1h_clamped",
+      "model": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-sol::zero",
+      "model": "gpt-5.6-sol",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-sol::no_breakdown",
+      "model": "gpt-5.6-sol",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-terra::base",
+      "model": "gpt-5.6-terra",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 15144.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.248,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-terra::cache_1h_flat",
+      "model": "gpt-5.6-terra",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15144.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.248,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-terra::cache_1h_nested",
+      "model": "gpt-5.6-terra",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15144.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.248,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-terra::cache_1h_clamped",
+      "model": "gpt-5.6-terra",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 15144.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.248,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-terra::zero",
+      "model": "gpt-5.6-terra",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.248,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "gpt-5.6-terra::no_breakdown",
+      "model": "gpt-5.6-terra",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.248,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "mai-code-1-flash-picker::base",
+      "model": "mai-code-1-flash-picker",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "mai-code-1-flash-picker::cache_1h_flat",
+      "model": "mai-code-1-flash-picker",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "mai-code-1-flash-picker::cache_1h_nested",
+      "model": "mai-code-1-flash-picker",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "mai-code-1-flash-picker::cache_1h_clamped",
+      "model": "mai-code-1-flash-picker",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 11078.4,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "mai-code-1-flash-picker::zero",
+      "model": "mai-code-1-flash-picker",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "mai-code-1-flash-picker::no_breakdown",
+      "model": "mai-code-1-flash-picker",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.0933,
+          "cacheWrite": 0.0,
+          "output": 6.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4.8::base",
+      "model": "claude-opus-4.8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4.8::cache_1h_flat",
+      "model": "claude-opus-4.8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4.8::cache_1h_nested",
+      "model": "claude-opus-4.8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4.8::cache_1h_clamped",
+      "model": "claude-opus-4.8",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4.8::zero",
+      "model": "claude-opus-4.8",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-opus-4.8::no_breakdown",
+      "model": "claude-opus-4.8",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5.5::base",
+      "model": "claude-sonnet-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 11850.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.05,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5.5::cache_1h_flat",
+      "model": "claude-sonnet-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 12750.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.05,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5.5::cache_1h_nested",
+      "model": "claude-sonnet-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 12750.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.05,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5.5::cache_1h_clamped",
+      "model": "claude-sonnet-5.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 14100.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.05,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5.5::zero",
+      "model": "claude-sonnet-5.5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.05,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-sonnet-5.5::no_breakdown",
+      "model": "claude-sonnet-5.5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.05,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-fable-5-1::base",
+      "model": "claude-fable-5-1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 10650.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.025,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-fable-5-1::cache_1h_flat",
+      "model": "claude-fable-5-1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 11550.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.025,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-fable-5-1::cache_1h_nested",
+      "model": "claude-fable-5-1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 11550.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.025,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-fable-5-1::cache_1h_clamped",
+      "model": "claude-fable-5-1",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 12900.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.025,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-fable-5-1::zero",
+      "model": "claude-fable-5-1",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.025,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "claude-fable-5-1::no_breakdown",
+      "model": "claude-fable-5-1",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.025,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "openrouter/anthropic/claude-haiku-4.5::base",
+      "model": "openrouter/anthropic/claude-haiku-4.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900
+      },
+      "expected": {
+        "effectiveTokens": 14250.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "openrouter/anthropic/claude-haiku-4.5::cache_1h_flat",
+      "model": "openrouter/anthropic/claude-haiku-4.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 1200
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "openrouter/anthropic/claude-haiku-4.5::cache_1h_nested",
+      "model": "openrouter/anthropic/claude-haiku-4.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 1200
+        }
+      },
+      "expected": {
+        "effectiveTokens": 15150.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "openrouter/anthropic/claude-haiku-4.5::cache_1h_clamped",
+      "model": "openrouter/anthropic/claude-haiku-4.5",
+      "usage": {
+        "input_tokens": 1200,
+        "cache_read_input_tokens": 48000,
+        "cache_creation_input_tokens": 3000,
+        "output_tokens": 900,
+        "cache_creation_1h_input_tokens": 999999
+      },
+      "expected": {
+        "effectiveTokens": 16500.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "openrouter/anthropic/claude-haiku-4.5::zero",
+      "model": "openrouter/anthropic/claude-haiku-4.5",
+      "usage": {
+        "input_tokens": 0,
+        "cache_read_input_tokens": 0,
+        "cache_creation_input_tokens": 0,
+        "output_tokens": 0
+      },
+      "expected": {
+        "effectiveTokens": 0.0,
+        "hasBreakdown": true,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    },
+    {
+      "id": "openrouter/anthropic/claude-haiku-4.5::no_breakdown",
+      "model": "openrouter/anthropic/claude-haiku-4.5",
+      "usage": {
+        "tokens_total": 12345
+      },
+      "expected": {
+        "effectiveTokens": 12345,
+        "hasBreakdown": false,
+        "weights": {
+          "input": 1.0,
+          "cacheRead": 0.1,
+          "cacheWrite": 1.25,
+          "output": 5.0,
+          "cacheWrite1h": 2.0
+        }
+      }
+    }
+  ],
+  "approxVectors": [
+    {
+      "text": "",
+      "expected": 1
+    },
+    {
+      "text": "a",
+      "expected": 1
+    },
+    {
+      "text": "abcd",
+      "expected": 1
+    },
+    {
+      "text": "abcde",
+      "expected": 1
+    },
+    {
+      "text": "aaaaaaaa",
+      "expected": 2
+    },
+    {
+      "text": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected": 100
+    },
+    {
+      "text": "日本語のテキストです",
+      "expected": 2
+    },
+    {
+      "text": "😀😀😀😀😀",
+      "expected": 1
+    },
+    {
+      "text": "mixed 日本語 😀 text",
+      "expected": 4
+    }
+  ],
+  "deviations": {
+    "unknownModel": {
+      "model": "deepseek-v4.1-flash",
+      "upstreamRaises": true,
+      "portEffectiveTokens": null
+    }
+  }
+}
