@@ -44,7 +44,7 @@ list.
 | Key | Default | Range | Meaning |
 | --- | --- | --- | --- |
 | `loopguardEnabled` | `true` | boolean | Detect repeated failures and stalls. |
-| `loopguardIntervene` | `false` | boolean | Inject a redirect (ACTIVE only; never stops the agent). |
+| `loopguardIntervene` | `false` | boolean | Queue one `agent.followup` redirect after the turn (ACTIVE only; never stops the agent). |
 | `loopguardLevel` | `default` | `conservative`, `default`, `aggressive` | Threshold preset. |
 | `loopguardJudge` | `true` | boolean | Allow one capped judge call per candidate; a *stuck* verdict may also spend one capped writer call for the redirect. |
 | `loopguardConfidence` | `0.7` | 0.5–1 | Minimum judge confidence to redirect. |

@@ -52,8 +52,9 @@ called. Recorded here as a deliberate gap, not an equivalence.
 Upstream folds one finished *session* as one task. This port used to advance the task index
 on every turn and to count every turn as a new confirmation. That let two turns of one
 session promote a fact and shifted recency decay. The index now belongs to the session
-(`sessionTasks` in `skills.json`), so repeated turns reuse it, and a confirmation is counted
-once per session id even if the same session is folded again.
+(`sessionTasks` in `skills.json`), so repeated turns reuse it. The adapter suppresses a
+second confirmation of the same key for that task; the ported `Lifecycle` itself has no
+session concept, matching upstream.
 
 ## Deliberate deviations
 
@@ -66,17 +67,17 @@ once per session id even if the same session is folded again.
 3. **Harness-native surfaces.** Micro-skills are injected as durable prompt
    context (not system instructions); tool pruning uses
    `agent.ctx.tools.restrict()`. The loop guard decides inside `onToolResult`
-   and delivers at most one redirect before the turn ends. It prefers the public
-   `agent.steer(message)` (a next-step message); when the host does not expose
-   `steer`, it falls back to `agent.followup(message)` and records the incident
-   delivery as `followup-degraded`, so a late redirect is visible rather than
-   silently reported as a normal steer. It never stops the agent and never
-   calls non-public `agent.inject()` for a redirect. The redirect is written by
-   the configured model only after a confident *stuck* verdict and only when
-   both `loopguardIntervene` and `loopguardJudge` are on; every other path uses
-   the deterministic count template. Subagents are never judged or redirected.
-   DSH may evaluate the prompt context text for every model request; the plugin
-   freezes the rendered block at the first non-empty lookup per session, as
+   but delivers at most one redirect per turn through the public
+   `agent.followup(message)`, recorded as `followup-degraded`. DSH exposes
+   `agent.steer`, but this port does not call it or `agent.inject()`. The
+   redirect therefore arrives **after the current turn**, not inside it, and
+   upstream's in-turn behavior is not achieved. It never stops the agent. The
+   redirect is written by the configured model only
+   after a confident *stuck* verdict and only when both `loopguardIntervene`
+   and `loopguardJudge` are on; every other path uses the deterministic count
+   template. Subagents are never judged or redirected. DSH may evaluate the
+   prompt context text for every model request; the plugin freezes the rendered
+   block at the first lookup per session -- including an empty block -- as
    upstream renders per session.
 4. **No auto-update.** Upstream is vendored at a fixed revision. See below.
 5. **Not ported, by scope.** The following upstream components are deliberately

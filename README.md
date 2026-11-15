@@ -27,7 +27,7 @@ fidelity to the pinned upstream commit, not a general redesign.
 | --- | --- | --- | --- |
 | Micro-skills | Repeated commands, repairs and file conventions across sessions in one repository | One attributed prompt block with confirmed facts | measured in SHADOW |
 | Tool pruning | Tool schemas present vs. tools actually called across sessions | Hides evidenced, unused, non-protected tools for that project; the work surface and controls stay | recorded in SHADOW |
-| Failure-loop guard | Repeated failing tool calls, edit churn (including edits through Bash), stagnation | At most **one** bounded redirect per turn | detected in SHADOW |
+| Failure-loop guard | Repeated failing tool calls, edit churn (including edits through Bash), stagnation | At most **one** bounded redirect per turn, queued as a `followup` after it | detected in SHADOW |
 
 Modes:
 
@@ -137,7 +137,7 @@ important ones:
 | `mode` | `shadow` | `off`, `shadow`, `active` |
 | `microskillsInject` | `false` | Inject confirmed facts in ACTIVE |
 | `toolpruneMode` | `observe` | `disabled`, `observe`, `propose`, `automatic` |
-| `loopguardIntervene` | `false` | Deliver one redirect per turn in ACTIVE |
+| `loopguardIntervene` | `false` | Queue one `followup` redirect per turn in ACTIVE |
 | `loopguardJudge` | `true` | Allow the optional paid judge and, after a *stuck* verdict, the redirect writer (never in SHADOW) |
 | `priceTable` | `""` | JSON `{ "provider/model": {input, output, cacheRead, cacheWrite} }` |
 | `subagentsEnabled` | `true` | Attribute subagent usage to the root session |
@@ -183,6 +183,10 @@ Benchmark summary (synthetic but shipped code paths; see [docs/BENCHMARK.md](doc
 * The redirect is written by the model only when the paid judge returns a confident
   *stuck* verdict; a heuristic-only or ambiguous verdict uses the deterministic
   count template rather than spending a second model call.
+* **Redirects are delayed, not in-turn.** DSH exposes `agent.steer`, but this port
+  does not call it. A confirmed loop redirect is queued with the
+  public `agent.followup` and arrives after the current turn; the guard decision is still
+  made from the in-turn tool evidence, but upstream's in-turn nudge is not achieved.
 * Shell edits are detected from Bash commands (`sed -i`, `perl -pi`, redirects and
   `tee`, inline Python writes, `patch`/`git apply`, `apply_patch`); a write whose
   target cannot be read counts as `(patch)` / `(script)`, as upstream does.

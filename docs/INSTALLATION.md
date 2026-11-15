@@ -62,7 +62,7 @@ The bundle is enabled when installed. Then:
    mechanisms you want:
    * `microskillsInject` — send confirmed project facts to the model;
    * `toolpruneMode = automatic` — hide tools proven unused in this project;
-   * `loopguardIntervene` — allow one redirect per stalled turn.
+   * `loopguardIntervene` — allow one `followup` redirect after a stalled turn.
 4. Optionally set `priceTable` to get cost estimates; without it the UI reports
    cost as unavailable.
 

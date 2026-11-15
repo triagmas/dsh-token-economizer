@@ -63,8 +63,6 @@ interface AgentLike {
   ctx: { tools: { definitions(scope?: unknown): readonly { name?: unknown }[]; restrict(filter: { deny: string[] }): () => void } }
   model?: { current?(): { provider?: string; model?: string } | undefined }
   followup?(message: unknown): void
-  /** Public DSH Agent API: enqueue input for the next step of the running turn. */
-  steer?(message: unknown): void
   status?: string
 }
 
@@ -194,14 +192,9 @@ export async function apply(ctx: ServicesLike, config: AnyRecord = {}): Promise<
       if (!binding) return { ok: false, delivery: 'failed' as const }
       if (binding.agent.status === 'disposed') return { ok: false, delivery: 'failed' as const }
       const message = redirectMessage(text)
-      if (typeof binding.agent.steer === 'function') {
-        try {
-          binding.agent.steer(message)
-          return { ok: true, delivery: 'steer' as const }
-        } catch (error) {
-          warn(logger, `steer delivery failed, falling back to followup: ${error instanceof Error ? error.message : String(error)}`)
-        }
-      }
+      // DSH exposes `agent.steer`, but this port does not call it. `followup` queues
+      // the redirect after the current turn, so the guard decision is in-turn but the
+      // delivery is not.
       if (!binding.agent.followup) return { ok: false, delivery: 'failed' as const }
       try {
         binding.agent.followup(message)

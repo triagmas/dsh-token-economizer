@@ -149,8 +149,8 @@ async function waitFor(predicate, timeoutMs = 1000) {
   return false
 }
 
-// T-a: the redirect must be delivered inside the turn, before the turn-end event.
-test('T-a loop guard delivers a redirect before onTurnEnd', async () => {
+// T-a: the guard decides in-turn and requests one followup, recorded at the turn boundary.
+test('T-a loop guard requests one followup redirect and records it', async () => {
   const env = await setup({ mode: 'active', loopguardIntervene: true, loopguardJudge: true })
   try {
     await warm(env.service)
@@ -165,7 +165,7 @@ test('T-a loop guard delivers a redirect before onTurnEnd', async () => {
     env.service.onToolResult(session, { ...failingBatch(1)[0], turn: 6 })
     assert.ok(
       await waitFor(() => env.redirects.length > 0, 1000),
-      'a redirect must exist before the turn ends',
+      'the followup request must be recorded before the turn-end boundary',
     )
     assert.ok(env.judgeCalls.length > 0, 'the judge was consulted')
     assert.equal(env.redirects.length, 1, 'at most one redirect per turn')

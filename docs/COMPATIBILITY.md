@@ -33,7 +33,7 @@ loading.
 | Prompt context | `systemPrompt.context({name, order, text})` | knowledge block | injection disabled, warning logged |
 | Tool catalog | `ctx.tools.definitions(scope?)` | pruning statistics | pruning disabled, warning logged |
 | Tool restriction | `agent.ctx.tools.restrict({deny})` | hide tools | pruning disabled, warning logged |
-| Loop redirect | `agent.steer(message)`, else `agent.followup(message)` marked `followup-degraded` | one in-turn redirect | no redirects, guard still measures |
+| Loop redirect | `agent.followup(message)` marked `followup-degraded`, delivered after the turn | one delayed redirect per turn; no in-turn nudge | no redirects, guard still measures |
 | LLM | `ctx.llm.stream(options)` | judge only in ACTIVE with `loopguardEnabled` + `loopguardIntervene` + `loopguardJudge` and budget | judge disabled, guard uses deterministic rules only |
 | Config | `ctx.get('configEditor').edit(entry, fn)` | persist settings | settings read-only; `/economizer config set` fails |
 

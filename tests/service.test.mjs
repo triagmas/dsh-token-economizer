@@ -443,10 +443,10 @@ test('active mode delivers the model-written redirect, not the count template', 
   }
 })
 
-test('an in-turn redirect records its delivery mode and a still-stuck follow-up', async () => {
+test('a delayed followup redirect records its delivery mode and a still-stuck follow-up', async () => {
   const env = await setup(
     { mode: 'active', loopguardIntervene: true, loopguardJudge: true },
-    { redirectDelivery: { ok: true, delivery: 'steer' } },
+    { redirectDelivery: { ok: true, delivery: 'followup-degraded' } },
   )
   try {
     for (let turn = 1; turn <= 5; turn += 1) {
@@ -469,7 +469,7 @@ test('an in-turn redirect records its delivery mode and a still-stuck follow-up'
     assert.equal(env.redirects.length, 1, 'the first verdict redirects')
 
     // After the redirect budget is spent the next verdict is the "still stuck" notice,
-    // never a second steer and never a turn stop.
+    // never a second followup and never a turn stop.
     for (const entry of failures()) env.service.onToolResult(session, entry)
     await env.service.flush()
     env.service.onToolResult(session, { ...call(), turn: 6 })
@@ -491,7 +491,7 @@ test('an in-turn redirect records its delivery mode and a still-stuck follow-up'
     const history = await env.service.loops({ sessionId: 'session-1' })
     const redirect = history.incidents.find((incident) => incident.intervention === 'nudge')
     assert.ok(redirect, 'the applied redirect is recorded')
-    assert.equal(redirect.detail.delivery, 'steer', 'the incident names the delivery mechanism')
+    assert.equal(redirect.detail.delivery, 'followup-degraded', 'the incident names the delayed followup delivery')
     assert.ok(
       history.incidents.some((incident) => incident.kind === 'still-stuck'),
       'a repeat after the redirect is recorded as still-stuck',

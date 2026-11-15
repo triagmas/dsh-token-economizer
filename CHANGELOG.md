@@ -22,17 +22,19 @@ Fidelity fixes against Microsoft TokenEconomizer, pinned commit
   its tool surface mid-turn; a manual restore or a mode change still applies
   immediately.
 - **The loop guard decides during the tool result, not after the turn.** A
-  confirmed loop redirect is delivered before the turn ends, using
-  `agent.steer()` when available and `agent.followup()` as a visible
-  `followup-degraded` fallback. A redirect whose verdict does not arrive is
-  reported as `still-stuck` at turn end; at most one redirect is delivered per
-  turn. Subagents are never judged or redirected.
+  confirmed loop redirect is queued with the public `agent.followup()` and
+  recorded as `followup-degraded`; it arrives after the current turn.
+  `agent.steer` is not used, so upstream's in-turn redirect is not
+  achieved. A redirect whose verdict does not arrive is reported as
+  `still-stuck` at turn end; at most one redirect is delivered per turn.
+  Subagents are never judged or redirected.
 - **Default micro-skill limits are more conservative.** `microskillsMinConfirmations=3`,
   `microskillsMaxFacts=4`, `microskillsMaxTokens=150`, `microskillsRetireDays=0`
   and `toolpruneReauditEvery=0`.
-- **One finished session is one task.** Fact confirmations are deduplicated by
-  session id and the task index follows the session, so repeated turns cannot
-  promote a fact on their own or shift recency decay.
+- **One finished session is one task.** The adapter suppresses a second
+  confirmation of the same key in one finished session, and the task index
+  follows the session, so repeated turns cannot promote a fact on their own or
+  shift recency decay. The ported lifecycle has no session concept.
 - **The knowledge block is frozen per session.** When DSH re-evaluates
   `systemPrompt.context.text(assembly)` on every request, the first lookup is
   reused, including an empty block and even before the project runtime is
@@ -53,6 +55,6 @@ Fidelity fixes against Microsoft TokenEconomizer, pinned commit
 - **`npm run check:dist`.** Compiles `src/` into a temporary directory, compares
   every `.js` file with the committed `lib/`, and syntax-checks the source-only
   `client/index.js` plus the bundle manifest.
-- **Fidelity regression tests T-a…T-g** covering in-turn loop decisions, quiet
+- **Fidelity regression tests T-a…T-g** covering loop-guard decisions, quiet
   pending hides, prompt evidence, one-session-one-task, frozen knowledge, and
   subagent/intervention status.
