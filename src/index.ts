@@ -356,6 +356,7 @@ export async function apply(ctx: ServicesLike, config: AnyRecord = {}): Promise<
       bindings.delete(sessionId)
       bySession.delete(sessionId)
     }
+    service.forgetSession(sessionId)
     roots.delete(sessionId)
   })
 

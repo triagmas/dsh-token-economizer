@@ -246,6 +246,10 @@ export class EconomizerService implements EconomizerApi {
   private readonly redirectDeliveries = new Set<Promise<void>>()
   /** Frozen knowledge block per session: DSH may re-evaluate `context.text(assembly)` per request. */
   private readonly sessionBlocks = new Map<string, string>()
+  /** Sessions whose first lookup ran before the project was warm (debug log once). */
+  private readonly coldLookups = new Set<string>()
+  /** De-duplicate concurrent `warmProject` calls for the same root. */
+  private readonly warming = new Map<string, Promise<void>>()
   private readonly inflight = new Set<Promise<unknown>>()
 
   constructor(options: ServiceOptions) {
@@ -525,6 +529,8 @@ export class EconomizerService implements EconomizerApi {
     this.sessions.clear()
     this.startedSessions.clear()
     this.sessionBlocks.clear()
+    this.coldLookups.clear()
+    this.warming.clear()
   }
 
   private logWarn(where: string, error: unknown): void {
@@ -919,17 +925,51 @@ export class EconomizerService implements EconomizerApi {
     const root = this.projectRootForSession(sessionId)
     if (!root) return ''
     const frozen = this.sessionBlocks.get(sessionId)
-    if (frozen !== undefined) return frozen
-    // Freeze on the first lookup even when the project runtime is not warm yet. A later
-    // warm-up must not change this session's prompt; only a new session sees the block.
-    let block = ''
-    for (const runtime of this.projectRuntimes.values()) {
-      if (runtime.root !== root) continue
-      block = runtime.block ?? ''
-      break
+    if (frozen !== undefined) {
+      // A session that looked up the block before `warmProject` finished used to freeze
+      // an empty string forever, even though the project block was non-empty. We no
+      // longer cache that empty value (see below); this branch only diagnoses sessions
+      // that were frozen by an older build or by a genuinely empty project at startup.
+      const current = this.runtimeForRoot(root)
+      if (frozen === '' && current && (current.block ?? '') !== '') {
+        this.logger.debug?.(
+          `token-economizer: session ${sessionId} froze an empty knowledge block before ${root} was warm; keeping it for prompt-cache consistency`,
+        )
+      }
+      return frozen
     }
+    const runtime = this.runtimeForRoot(root)
+    if (!runtime) {
+      // DSH evaluates this provider per assembly. Returning '' without caching lets the
+      // next assembly pick up the block once the runtime is warm, instead of pinning the
+      // session to an empty block because it raced `agent/created`'s warm-up.
+      if (!this.coldLookups.has(sessionId)) {
+        this.coldLookups.add(sessionId)
+        this.logger.debug?.(
+          `token-economizer: knowledge lookup for ${sessionId} ran before ${root} was warm; warming it now`,
+        )
+      }
+      void this.warmProject(root).catch((error: unknown) => this.logWarn('project warm-up', error))
+      return ''
+    }
+    // Freeze on the first lookup once the runtime exists -- including a genuinely empty
+    // block. A later fold must not change this session's prompt; only a new session sees it.
+    const block = runtime.block ?? ''
     this.sessionBlocks.set(sessionId, block)
     return block
+  }
+
+  /** Drop per-session prompt state when the Host disposes the agent. */
+  forgetSession(sessionId: string): void {
+    this.sessionBlocks.delete(sessionId)
+    this.coldLookups.delete(sessionId)
+  }
+
+  private runtimeForRoot(root: string): ProjectRuntime | undefined {
+    for (const runtime of this.projectRuntimes.values()) {
+      if (runtime.root === root) return runtime
+    }
+    return undefined
   }
 
   /** Deny set (tool names) to apply for a session's project, already filtered by policy. */
@@ -974,8 +1014,18 @@ export class EconomizerService implements EconomizerApi {
 
   /** Load the persisted block for a project at session start. */
   async warmProject(root: string): Promise<void> {
-    const project = await this.store.project(root)
-    await this.projectRuntime(project, this.config())
+    const running = this.warming.get(root)
+    if (running) return running
+    const task = (async () => {
+      const project = await this.store.project(root)
+      await this.projectRuntime(project, this.config())
+    })()
+    this.warming.set(root, task)
+    try {
+      await task
+    } finally {
+      if (this.warming.get(root) === task) this.warming.delete(root)
+    }
   }
 
   // ------------------------------------------------------------------ reads

@@ -831,7 +831,7 @@ test('a session freezes an empty knowledge block at first lookup', async () => {
   }
 })
 
-test('a session freezes an empty block even before the project warms', async () => {
+test('a cold lookup does not freeze an empty knowledge block', async () => {
   const env = await setup(
     { mode: 'active', microskillsInject: true, microskillsProfile: 'distiller' },
     { warm: false },
@@ -848,14 +848,41 @@ test('a session freezes an empty block even before the project warms', async () 
       'the first lookup happens before any project runtime exists',
     )
     await env.service.warmProject(PROJECT)
-    assert.equal(
+    assert.match(
       env.service.knowledgeForSession('session-1'),
-      '',
-      'warming the project must not change the block of a session that already looked it up',
+      /Canonical test command is `pnpm test`\./,
+      'once the project is warm the same session sees its non-empty block',
     )
 
     env.service.registerRoot('session-2', PROJECT)
     assert.match(env.service.knowledgeForSession('session-2'), /Canonical test command is `pnpm test`\./)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('disposing an agent drops its frozen knowledge block', async () => {
+  const env = await setup({ mode: 'active', microskillsInject: true, microskillsProfile: 'distiller' })
+  try {
+    const project = await env.store.project(PROJECT)
+    await project.updateSkills((file) => {
+      file.facts = [activeFact()]
+    })
+    await finishTurn(env.service, { turn: 1, calls: [] })
+    assert.match(env.service.knowledgeForSession('session-1'), /Canonical test command is `pnpm test`\./)
+
+    await project.updateSkills((file) => {
+      file.facts.push(activeFact({ id: 'fact-2', key: 'fact-key-2', text: 'Run the linter with `pnpm lint`.' }))
+    })
+    await finishTurn(env.service, { turn: 2, calls: [] })
+    assert.equal(env.service.knowledgeForSession('session-1').includes('pnpm lint'), false, 'the live session stays frozen')
+
+    env.service.forgetSession('session-1')
+    assert.match(
+      env.service.knowledgeForSession('session-1'),
+      /pnpm lint/,
+      'a disposed session no longer holds a stale block for a reused id',
+    )
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }
