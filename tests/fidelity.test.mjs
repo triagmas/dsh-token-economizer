@@ -340,6 +340,10 @@ test('T-g loopguardIntervene=false never calls the judge', async () => {
     await finishOnly(env.service, session, 6, failingBatch(22))
     assert.equal(env.judgeCalls.length, 0, 'redirects are off, so the paid judge is off too')
     assert.equal(env.redirects.length, 0)
+    const status = await env.service.status({ sessionId: 'session-1' })
+    assert.equal(status.effective.loopguard, false, 'status must not advertise intervention that is off')
+    assert.equal(status.effective.judge, false, 'status must not advertise a judge that cannot run')
+    assert.ok(status.notes.some((note) => note.includes('observing only')), 'the status note explains the disabled redirect')
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }
