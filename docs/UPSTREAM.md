@@ -106,6 +106,7 @@ test suite never requires Python. To regenerate:
 python3 tests/parity/generate_microskills_vectors.py
 python3 tests/parity/generate_loopguard_vectors.py
 python3 tests/parity/generate_pricing_vectors.py
+python3 tests/parity/generate_toolprune_vectors.py
 node --test tests/parity/*.test.mjs
 ```
 
