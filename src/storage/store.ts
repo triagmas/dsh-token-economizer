@@ -49,6 +49,10 @@ export interface ToolsFile {
   schemaVersion: number
   tools: Record<string, ToolStat>
   pruned: string[]
+  /** New automatic hides held until a later session (upstream `auto_pending`). */
+  autoPending?: { items: string[]; since: string } | null
+  /** Last observed project activity, used by the quiet-period gate. */
+  lastActivityAt?: string | null
   lastAuditTask: number
   updatedAt: string | null
 }
@@ -73,6 +77,8 @@ export const EMPTY_TOOLS: ToolsFile = {
   schemaVersion: SCHEMA_VERSION,
   tools: {},
   pruned: [],
+  autoPending: null,
+  lastActivityAt: null,
   lastAuditTask: -1,
   updatedAt: null,
 }
@@ -87,6 +93,13 @@ function migrateSkills(file: SkillsFile): SkillsFile {
 function migrateTools(file: ToolsFile): ToolsFile {
   if (file.schemaVersion > SUPPORTED_MAX_VERSION) {
     throw new Error(`token-economizer: tools.json schema ${file.schemaVersion} is newer than supported ${SUPPORTED_MAX_VERSION}`)
+  }
+  // Rows written by older releases predate `unusedPrompts`; normalize the counter here
+  // (the policy also falls back to one prompt per unused session for those rows).
+  for (const stat of Object.values(file.tools ?? {})) {
+    if (stat && (!Number.isFinite((stat as { unusedPrompts?: number }).unusedPrompts) || (stat as { unusedPrompts?: number }).unusedPrompts! < 0)) {
+      ;(stat as { unusedPrompts: number }).unusedPrompts = 0
+    }
   }
   return { ...file, schemaVersion: SCHEMA_VERSION }
 }

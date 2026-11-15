@@ -294,7 +294,11 @@ export async function apply(ctx: ServicesLike, config: AnyRecord = {}): Promise<
     try {
       const route = agent.model?.current?.()
       if (route) service.setSessionRoute(sessionId, { provider: route.provider, model: route.model })
-      if (root) await service.warmProject(root)
+      if (root) {
+        await service.warmProject(root)
+        // Apply any pending automatic hide before this session's first reconcile.
+        await service.beginSession(sessionId, root)
+      }
     } catch (error) {
       warn(logger, `agent setup failed: ${error instanceof Error ? error.message : String(error)}`)
     }

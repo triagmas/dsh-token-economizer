@@ -30,11 +30,13 @@ import { SCHEMA_VERSION, Store, type ProjectStore, type SkillsFile } from '../st
 import { buildUsageReport, parsePriceTable, type PriceTable } from '../metrics/ledger.js'
 import {
   PROTECTED_TOOLS,
+  appliedDenySet,
   computeDenySet,
   evaluateCandidate,
   observeToolAvailability,
   observedSessions,
   recordUnusedPrompts,
+  unusedPromptsFor,
   recordToolCall,
   restoreTool,
   reauditDue,
@@ -127,6 +129,9 @@ interface ProjectRuntime {
 }
 
 const EMPTY_COUNTS: UsageCounts = { ...ZERO }
+
+/** Upstream `fold.py::PENDING_MAX_S`: apply a pending hide after this long even if active. */
+const PENDING_MAX_MS = 24 * 60 * 60 * 1000
 
 function emptyUsage(): UsageCounts {
   return { ...EMPTY_COUNTS }
@@ -226,6 +231,7 @@ export class EconomizerService implements EconomizerApi {
   private readonly judgeUsage = new Map<string, UsageCounts>()
   private readonly judgeTurnUsage = new Map<string, UsageCounts>()
   private readonly unobserved = new Set<string>()
+  private readonly startedSessions = new Set<string>()
   private readonly inflight = new Set<Promise<unknown>>()
 
   constructor(options: ServiceOptions) {
@@ -260,6 +266,60 @@ export class EconomizerService implements EconomizerApi {
     if (sessionId) this.roots.set(sessionId, root)
   }
 
+  /**
+   * Start a session before the Host reconciles its tool catalog. Applies the pending
+   * automatic hide list when the project has been quiet long enough (or the list is
+   * older than 24h), otherwise leaves it for a later session. Upstream `fold.py`
+   * deliberately waits for a later session so a running prompt cache is not invalidated.
+   */
+  async beginSession(sessionId: string, root: string | null = null): Promise<void> {
+    if (!sessionId) return
+    const projectRoot = root ?? this.projectRootForSession(sessionId)
+    if (!projectRoot) return
+    const config = this.config()
+    if (!this.isOn(config)) return
+    const project = await this.store.project(projectRoot)
+    const now = Date.now()
+    let changed = false
+    await project.updateTools((file) => {
+      const automatic = config.toolpruneEnabled && config.toolpruneMode === 'automatic' && config.mode === 'active'
+      const pending = file.autoPending
+      if (pending && Array.isArray(pending.items) && pending.items.length) {
+        if (!automatic) {
+          file.autoPending = null
+          changed = true
+        } else {
+          const last = Date.parse(file.lastActivityAt ?? '') || 0
+          const since = Date.parse(pending.since ?? '') || now
+          const quietMs = Math.max(0, config.toolpruneQuietMinutes) * 60_000
+          const quiet = config.toolpruneQuietMinutes <= 0 || now - last >= quietMs
+          const expired = now - since >= PENDING_MAX_MS
+          if (quiet || expired) {
+            for (const name of [...pending.items]) {
+              if (markPruned(file, name, 'evidence')) changed = true
+            }
+            file.autoPending = null
+            changed = true
+          }
+        }
+      } else if (pending && !automatic) {
+        file.autoPending = null
+        changed = true
+      }
+      // Starting a session is activity; set it after the quiet check so a new session
+      // does not erase the idle interval it was supposed to measure.
+      file.lastActivityAt = new Date(now).toISOString()
+    })
+    this.startedSessions.add(sessionId)
+    if (changed) this.options.onToolsChanged?.(projectRoot)
+  }
+
+  private ensureSessionStarted(sessionId: string, root: string | null): void {
+    if (!sessionId || this.startedSessions.has(sessionId)) return
+    this.startedSessions.add(sessionId)
+    this.queue.run(() => this.beginSession(sessionId, root), this.logger)
+  }
+
   /** Remember the model route a session uses, for the optional judge. */
   setSessionRoute(sessionId: string, route: { provider?: string; model?: string } | undefined): void {
     if (!sessionId) return
@@ -275,8 +335,9 @@ export class EconomizerService implements EconomizerApi {
   beginTurn(session: ObservedSession, turn = 1): void {
     this.judgeTurnUsage.set(session.sessionId, emptyUsage())
     const config = this.config()
-    if (!this.isOn(config) || !config.loopguardEnabled) return
     const projectRoot = session.projectRoot ?? this.roots.get(session.sessionId) ?? this.roots.get(session.rootSessionId) ?? null
+    if (projectRoot) this.ensureSessionStarted(session.sessionId, projectRoot)
+    if (!this.isOn(config) || !config.loopguardEnabled) return
     if (!projectRoot) return
     const projectId = projectIdForRoot(projectRoot)
     const known = this.projectRuntimes.get(projectId)
@@ -337,6 +398,7 @@ export class EconomizerService implements EconomizerApi {
   async dispose(): Promise<void> {
     this.guards.clear()
     this.sessions.clear()
+    this.startedSessions.clear()
     await this.flush()
   }
 
@@ -389,6 +451,18 @@ export class EconomizerService implements EconomizerApi {
         session.availableTools.map((tool) => ({ name: tool.name, descriptionTokens: tool.descriptionTokens })),
         taskIndex,
       )
+    }
+    toolsFile.lastActivityAt = at
+    // New automatic hides are held for a later session; never applied to the turn that
+    // discovered them. Existing `pruned` entries stay in force.
+    if (!session.isSubagent && config.mode === 'active' && config.toolpruneEnabled && config.toolpruneMode === 'automatic') {
+      const candidates = computeDenySet(toolsFile, config, { observedSessions: observedSessions(toolsFile) })
+        .filter((name) => !toolsFile.pruned.includes(name))
+      if (candidates.length) {
+        const previous = toolsFile.autoPending
+        const items = [...new Set([...(previous?.items ?? []), ...candidates])].sort((a, b) => a.localeCompare(b))
+        toolsFile.autoPending = { items, since: previous?.since ?? at }
+      }
     }
     await project.saveTools(toolsFile)
 
@@ -561,8 +635,8 @@ export class EconomizerService implements EconomizerApi {
       }
     }
 
-    // Tool availability changed; let the Host re-apply restrictions cheaply.
-    this.options.onToolsChanged?.(root)
+    // Tool availability is intentionally not re-applied here for automatic pruning: a
+    // new hide waits for a later session (upstream `denylist.apply` semantics).
   }
 
   private async safeDecide(guard: LoopGuardEngine): Promise<LoopDecision | null> {
@@ -725,34 +799,29 @@ export class EconomizerService implements EconomizerApi {
     const file = await project.loadTools()
     const reaudit = runtime.reauditPending === true
     runtime.reauditPending = false
-    const deny = computeDenySet(file, config, {
-      observedSessions: observedSessions(file),
-      reaudit,
-    })
-    // Persist exactly the set the host is asked to hide. A re-audit turn keeps the
-    // persisted list but applies no deny for that one reconcile, then the next turn
-    // resumes the existing hides.
-    if (!reaudit) {
-      let changed = false
-      for (const name of [...file.pruned]) {
-        if (!deny.includes(name)) changed = unmarkPruned(file, name) || changed
-      }
-      for (const name of deny) {
-        const row = file.tools[name]
-        if (!row || row.pruned) continue
-        changed = markPruned(file, name, 'evidence') || changed
-      }
-      if (changed) await project.saveTools(file)
+    // Only hides that were applied at a session boundary are visible here. Fresh
+    // evidence waits in `file.autoPending`; recomputing it mid-session would shrink the
+    // catalog the running prompt cache was built against (upstream `denylist.py`).
+    const deny = appliedDenySet(file)
+    if (deny.length !== file.pruned.length) {
+      file.pruned = deny
+      await project.saveTools(file)
     }
-    return deny
+    // A re-audit turn shows the full catalog once; the persisted hides resume on the
+    // next reconcile.
+    return reaudit ? [] : deny
   }
 
   /** Clear every persisted hide when mutations are off or not automatic. */
   private async clearPruned(project: ProjectStore): Promise<void> {
     const file = await project.loadTools()
-    if (!file.pruned.length) return
+    if (!file.pruned.length && !file.autoPending) return
     let changed = false
     for (const name of [...file.pruned]) changed = unmarkPruned(file, name) || changed
+    if (file.autoPending) {
+      file.autoPending = null
+      changed = true
+    }
     if (changed) await project.saveTools(file)
   }
 
@@ -964,7 +1033,7 @@ export class EconomizerService implements EconomizerApi {
           reason: decision.candidate ? 'candidate' : decision.reason,
           evidence: {
             sessions: row.sessionsAvailable,
-            prompts: row.unusedPrompts ?? 0,
+            prompts: unusedPromptsFor(row),
             calls: row.calls,
             sessionsRequired: config.toolpruneMinSessions,
             promptsRequired: config.toolpruneEvidence,
@@ -980,6 +1049,11 @@ export class EconomizerService implements EconomizerApi {
         notes.push('Automatic mode only hides tools in ACTIVE mode.')
       }
       if (file.pruned.length) notes.push(`${file.pruned.length} tool(s) are currently hidden by policy.`)
+      if (file.autoPending?.items?.length) {
+        notes.push(
+          `${file.autoPending.items.length} evidenced tool(s) are waiting for a later session (quiet period ${config.toolpruneQuietMinutes} min).`,
+        )
+      }
     }
     return {
       ok: true,
@@ -1167,9 +1241,14 @@ export class EconomizerService implements EconomizerApi {
     const project = resolved.project
     let changed = 0
     await project.updateTools((file) => {
-      const names = payload.action === 'restoreAll' ? [...file.pruned] : payload.names ?? []
+      const pending = Array.isArray(file.autoPending?.items) ? file.autoPending.items : []
+      const names = payload.action === 'restoreAll' ? [...new Set([...file.pruned, ...pending])] : payload.names ?? []
       for (const name of names) {
         if (restoreTool(file, name)) changed += 1
+      }
+      if (file.autoPending && names.length) {
+        const keep = file.autoPending.items.filter((name) => !names.includes(name))
+        file.autoPending = keep.length ? { ...file.autoPending, items: keep } : null
       }
       file.updatedAt = new Date().toISOString()
     })

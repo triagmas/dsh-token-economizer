@@ -428,6 +428,24 @@ export function computeDenySet(file: ToolsFile, config: ResolvedConfig, context:
 }
 
 /**
+ * The already-applied deny list only: persisted hides that are still deniable.
+ * Unlike `computeDenySet`, this never evaluates fresh evidence; new candidates wait in
+ * `autoPending` until a later session. Used by `denySetForSession` so the running
+ * session's catalog cannot shrink mid-turn.
+ */
+export function appliedDenySet(file: ToolsFile): string[] {
+  const deny = new Set<string>()
+  for (const name of Array.isArray(file.pruned) ? file.pruned : []) {
+    const stat = file.tools[name]
+    if (!stat || isToolInactive(stat) || stat.protected || isProtectedName(name)) continue
+    if (hasEverBeenUsed(stat)) continue
+    if ((stat as PolicyToolRow).restored) continue
+    deny.add(name)
+  }
+  return [...deny].sort((a, b) => a.localeCompare(b))
+}
+
+/**
  * Mark one tool pruned and add it to the persisted deny list.
  *
  * Refuses rows that are unknown, inactive, protected, allowlisted-by-row, or ever used:

@@ -104,6 +104,13 @@ export const Config = z.object({
     .default(5)
     .description('Shortcut: hide an unused tool after this many sessions regardless of prompts.')
     .volatile(),
+  toolpruneQuietMinutes: z.number()
+    .min(0)
+    .max(10080)
+    .step(1)
+    .default(60)
+    .description('Wait this many minutes of project inactivity before applying new automatic hides (0 = next session immediately).')
+    .volatile(),
   toolpruneReauditEvery: z.number()
     .min(0)
     .max(1000)
@@ -234,6 +241,7 @@ export interface ResolvedConfig {
   toolpruneEvidence: number
   toolpruneMinSessions: number
   toolpruneSessions: number
+  toolpruneQuietMinutes: number
   toolpruneReauditEvery: number
   toolpruneAllowlist: string[]
   loopguardEnabled: boolean
@@ -270,6 +278,7 @@ export const CONFIG_DEFAULTS: ResolvedConfig = {
   toolpruneEvidence: 10,
   toolpruneMinSessions: 2,
   toolpruneSessions: 5,
+  toolpruneQuietMinutes: 60,
   toolpruneReauditEvery: 25,
   toolpruneAllowlist: [],
   loopguardEnabled: true,
@@ -352,6 +361,7 @@ export function resolveConfig(raw: Record<string, unknown> | undefined | null): 
     toolpruneEvidence: num(source.toolpruneEvidence, CONFIG_DEFAULTS.toolpruneEvidence, 1, 100),
     toolpruneMinSessions: num(source.toolpruneMinSessions, CONFIG_DEFAULTS.toolpruneMinSessions, 1, 100),
     toolpruneSessions: num(source.toolpruneSessions, CONFIG_DEFAULTS.toolpruneSessions, 1, 100),
+    toolpruneQuietMinutes: num(source.toolpruneQuietMinutes, CONFIG_DEFAULTS.toolpruneQuietMinutes, 0, 10080),
     toolpruneReauditEvery: num(source.toolpruneReauditEvery, CONFIG_DEFAULTS.toolpruneReauditEvery, 0, 1000),
     toolpruneAllowlist: Array.isArray(allowlist)
       ? allowlist.filter((item): item is string => typeof item === 'string' && item.trim() !== '').map((item) => item.trim())

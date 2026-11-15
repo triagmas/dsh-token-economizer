@@ -31,6 +31,7 @@ page, `/economizer config set <key>=<value>`, or the plugin's Settings tab.
 | `toolpruneEvidence` | `10` | 1–100 | Prompts (completed turns) where a tool was available but unused before it qualifies. |
 | `toolpruneMinSessions` | `2` | 1–100 | Minimum observed sessions the prompt evidence must be spread over. |
 | `toolpruneSessions` | `5` | 1–100 | Sessions shortcut: hide an unused tool even when its prompt count is lower. |
+| `toolpruneQuietMinutes` | `60` | 0–10080 | Project inactivity before new automatic hides apply at the next session. `0` applies them at the next session immediately. |
 | `toolpruneReauditEvery` | `25` | 0–1000 | Re-read the catalog every N tasks; `0` disables periodic re-audit. |
 | `toolpruneAllowlist` | `[]` | string[] | Tool names that are never hidden. |
 

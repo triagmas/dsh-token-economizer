@@ -218,7 +218,13 @@ test('subagent accounting can be switched off without losing the root metrics', 
 })
 
 test('tool evidence becomes a candidate after the configured sessions and denies only in ACTIVE automatic mode', async () => {
-  const env = await setup({ mode: 'active', toolpruneMode: 'automatic', toolpruneMinSessions: 2, toolpruneEvidence: 2 })
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 2,
+    toolpruneEvidence: 2,
+    toolpruneQuietMinutes: 0,
+  })
   try {
     await finishTurn(env.service, { sessionId: 'session-1', turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
     await finishTurn(env.service, { sessionId: 'session-2', turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
@@ -226,8 +232,10 @@ test('tool evidence becomes a candidate after the configured sessions and denies
     const rare = tools.entries.find((entry) => entry.name === 'rare_tool')
     assert.equal(rare.status, 'active')
     assert.equal(rare.reason, 'candidate')
-    const deny = await env.service.denySetForSession('session-1')
-    assert.ok(deny.includes('rare_tool'), 'automatic mode denies the evidenced candidate')
+    env.service.registerRoot('session-3', PROJECT)
+    await env.service.beginSession('session-3', PROJECT)
+    const deny = await env.service.denySetForSession('session-3')
+    assert.ok(deny.includes('rare_tool'), 'automatic mode denies the evidenced candidate in the next session')
     assert.ok(!deny.includes('edit'), 'used tools stay available')
 
     await env.service.setMode('active')
@@ -320,7 +328,13 @@ test('settings validation rejects unknown keys, bad enums and bad types', async 
 })
 
 test('mode switching restores tool restrictions and never applies in shadow mode', async () => {
-  const env = await setup({ mode: 'active', toolpruneMode: 'automatic', toolpruneMinSessions: 2, toolpruneEvidence: 2 })
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 2,
+    toolpruneEvidence: 2,
+    toolpruneQuietMinutes: 0,
+  })
   try {
     await finishTurn(env.service, { turn: 1, calls: [call('bash', { command: 'ls' })] })
     await finishTurn(env.service, { turn: 2, calls: [call('bash', { command: 'ls' })] })
@@ -610,17 +624,52 @@ test('shadow mode never applies a loop redirect even when the switch is on', asy
   }
 })
 
+test('the quiet period holds a pending hide until the project has been idle', async () => {
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 60,
+  })
+  try {
+    await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    const project = await env.store.project(PROJECT)
+    const now = new Date().toISOString()
+    await project.updateTools((file) => {
+      file.lastActivityAt = now
+      if (file.autoPending) file.autoPending.since = now
+    })
+    // A session immediately after the discovery must not see the new hide.
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+    assert.deepEqual(await env.service.denySetForSession('session-2'), [], 'quiet period postpones the hide')
+
+    await project.updateTools((file) => {
+      file.lastActivityAt = '2026-01-01T00:00:00.000Z'
+    })
+    env.service.registerRoot('session-3', PROJECT)
+    await env.service.beginSession('session-3', PROJECT)
+    assert.ok((await env.service.denySetForSession('session-3')).includes('rare_tool'), 'idle project applies the pending hide')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
 test('a periodic re-audit shows the full catalog once without losing persisted hides', async () => {
   const env = await setup({
     mode: 'active',
     toolpruneMode: 'automatic',
     toolpruneMinSessions: 1,
     toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
     toolpruneReauditEvery: 2,
   })
   try {
     await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
-    assert.ok((await env.service.denySetForSession('session-1')).includes('rare_tool'))
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+    assert.ok((await env.service.denySetForSession('session-2')).includes('rare_tool'))
     const project = await env.store.project(PROJECT)
 
     // A normal task keeps the hide.
@@ -644,10 +693,19 @@ test('a periodic re-audit shows the full catalog once without losing persisted h
 })
 
 test('leaving automatic ACTIVE pruning clears persisted hides', async () => {
-  const env = await setup({ mode: 'active', toolpruneMode: 'automatic', toolpruneMinSessions: 1, toolpruneEvidence: 1 })
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
+  })
   try {
     await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
-    assert.ok((await env.service.denySetForSession('session-1')).includes('rare_tool'))
+    env.service.registerRoot('session-2', PROJECT)
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+    assert.ok((await env.service.denySetForSession('session-2')).includes('rare_tool'))
     const project = await env.store.project(PROJECT)
     await env.service.setMode('shadow')
     assert.deepEqual(await env.service.denySetForSession('session-1'), [])
