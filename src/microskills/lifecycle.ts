@@ -74,12 +74,6 @@ export class Lifecycle {
   state: FactState = 'CANDIDATE'
   /** `[(task_idx, [edited_files])]` */
   confirms: Array<[number, string[]]> = []
-  /**
-   * Session id for each entry of `confirms`, parallel to it. Upstream folds one finished
-   * session at a time; a caller that re-folds the same session (several turns) must not count
-   * it twice. Kept out of `toDict()` so the upstream lifecycle parity stays exact.
-   */
-  sessionConfirms: string[] = []
   /** `[task_idx]` */
   contradicts: number[] = []
   /** Tasks where the waste occurred (fired). */
@@ -98,7 +92,7 @@ export class Lifecycle {
 
   /** Confirmations on tasks that edited (at least partly) different files, in order. */
   driftedConfirms(): number {
-    if (!this.drift) return this.uniqueConfirmCount()
+    if (!this.drift) return this.confirms.length
     const kept: Array<[number, Set<string>]> = []
     for (const [index, files] of this.confirms) {
       const set = new Set(files)
@@ -107,21 +101,6 @@ export class Lifecycle {
       }
     }
     return kept.length
-  }
-
-  /** One confirmation per session, even if a caller folded the same session twice. */
-  private uniqueConfirmCount(): number {
-    const seen = new Set<string>()
-    let count = 0
-    for (let i = 0; i < this.confirms.length; i += 1) {
-      const session = this.sessionConfirms[i] ?? ''
-      if (session) {
-        if (seen.has(session)) continue
-        seen.add(session)
-      }
-      count += 1
-    }
-    return count
   }
 
   /** Recency-weighted confirmations minus LAMBDA-weighted contradictions. */
@@ -148,19 +127,13 @@ export class Lifecycle {
     fired: boolean,
     exercised: boolean,
     files: Iterable<string>,
-    sessionId = '',
   ): void {
     if (exercised) {
       this.fireDen += 1
       if (fired) this.fireNum += 1
     }
     if (verdict === 'confirm') {
-      // A session is one piece of evidence per fact: several turns in the same session must
-      // not promote a CANDIDATE (upstream folds a finished session once).
-      if (!sessionId || !this.sessionConfirms.includes(sessionId)) {
-        this.confirms.push([now, [...files].sort()])
-        this.sessionConfirms.push(sessionId)
-      }
+      this.confirms.push([now, [...files].sort()])
     } else if (verdict === 'contradict') {
       this.contradicts.push(now)
     }
@@ -232,9 +205,8 @@ export function foldLifecycle(
   exercised: boolean,
   files: Iterable<string>,
   options: FoldOptions = {},
-  sessionId = '',
 ): Verdict {
-  life.update(now, verdict, fired, exercised, files, sessionId)
+  life.update(now, verdict, fired, exercised, files)
   if (options.hardKillCandidates && verdict === 'contradict' && life.high && life.state === 'CANDIDATE') {
     life.state = 'RETIRED'
     life.retiredAt = now
@@ -255,7 +227,6 @@ export function lifecycleFromStored(row: StoredFact, options: LifecycleOptions =
   const life = new Lifecycle(row.key, Boolean(row.high), Boolean(row.drift), options)
   life.state = row.state
   life.confirms = (row.confirms ?? []).map(([index, files]) => [Number(index), [...(files ?? [])]] as [number, string[]])
-  life.sessionConfirms = (row.confirmSessions ?? []).slice(0, life.confirms.length)
   life.contradicts = [...(row.contradicts ?? [])].map(Number)
   life.fireNum = Number(row.fireNum ?? 0)
   life.fireDen = Number(row.fireDen ?? 0)
@@ -271,8 +242,6 @@ export function applyLifecycleToStored(row: StoredFact, life: Lifecycle): Stored
   row.drift = life.drift
   row.state = life.state
   row.confirms = life.confirms.map(([index, files]) => [index, [...files]] as [number, string[]])
-  if (life.sessionConfirms.some(Boolean)) row.confirmSessions = [...life.sessionConfirms]
-  else delete row.confirmSessions
   row.contradicts = [...life.contradicts]
   row.fireNum = life.fireNum
   row.fireDen = life.fireDen
@@ -304,7 +273,6 @@ export function storedFactFromLifecycle(life: Lifecycle, meta: StoredFactMeta): 
     drift: life.drift,
     state: life.state,
     confirms: life.confirms.map(([index, files]) => [index, [...files]] as [number, string[]]),
-    ...(life.sessionConfirms.some(Boolean) ? { confirmSessions: [...life.sessionConfirms] } : {}),
     contradicts: [...life.contradicts],
     fireNum: life.fireNum,
     fireDen: life.fireDen,

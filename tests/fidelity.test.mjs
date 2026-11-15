@@ -232,8 +232,8 @@ test('T-c enough_evidence uses prompts, min sessions and the sessions shortcut',
   assert.equal(enoughEvidence({ sessions: 2, prompts: 9 }, cfg), false, '(2 sessions, 9 prompts) stays')
 })
 
-// T-d: two confirms in one session are one piece of evidence; three sessions are three.
-test('T-d confirmations do not accumulate twice inside one session', async () => {
+// T-d: the adapter suppresses a repeated session; the ported lifecycle itself has no sessions.
+test('T-d the adapter filter keeps one session from confirming twice', async () => {
   const engine = new MicroskillsEngine()
   const config = resolveConfig({
     mode: 'shadow',
@@ -260,12 +260,21 @@ test('T-d confirmations do not accumulate twice inside one session', async () =>
     projectId: 'example/repo', sessionId, turn: taskIndex + 1, calls: [], writes: [], failures: [],
     editedFiles: [], taskIndex, at: AT,
   })
+  const confirmed = new Map()
   const run = (sessionId, taskIndex, facts) => engine.run({
     window: window(sessionId, taskIndex),
     facts,
     config,
     policy: DEFAULT_REDACTION,
     proposed: [candidate],
+    verdictFilter: (key, verdict) => {
+      if (verdict !== 'confirm') return verdict
+      const seen = confirmed.get(sessionId) ?? new Set()
+      if (seen.has(key)) return null
+      seen.add(key)
+      confirmed.set(sessionId, seen)
+      return verdict
+    },
   }).facts
 
   let facts = []
@@ -276,6 +285,34 @@ test('T-d confirmations do not accumulate twice inside one session', async () =>
 
   facts = run('s-2', 2, facts)
   assert.equal(facts[0].state, 'ACTIVE', 'three sessions do promote at k=2')
+})
+
+// T-d service: the adapter, not the ported lifecycle, keeps one session's repeated turn
+// from becoming a second confirmation.
+test('T-d service: a second turn in one session does not confirm the env fact twice', async () => {
+  const env = await setup({
+    microskillsEnabled: true,
+    microskillsProfile: 'envfacts',
+    microskillsMinConfirmations: 2,
+    microskillsMaxFacts: 12,
+    microskillsMaxTokens: 700,
+  })
+  try {
+    const calls = [
+      call('bash', { command: 'python runtests.py' }, true, "ModuleNotFoundError: No module named 'app'"),
+      call('bash', { command: 'cd src && python runtests.py' }, false, 'Ran 3 tests in 0.01s\nOK'),
+    ]
+    await endTurn(env.service, { turn: 1, calls })
+    await endTurn(env.service, { turn: 2, calls: calls.map((entry) => ({ ...entry, turn: 2 })) })
+    const project = await env.store.project(PROJECT)
+    const skills = await project.loadSkills()
+    const fact = skills.facts.find((row) => row.id.startsWith('form_repair:'))
+    assert.ok(fact, 'the repaired test form became an environment fact')
+    assert.equal(fact.confirms.length, 1, 'one session contributes one confirmation')
+    assert.equal(fact.state, 'CANDIDATE', 'two turns in one session do not reach k=2')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
 })
 
 // T-e: the port must obey the upstream block caps.

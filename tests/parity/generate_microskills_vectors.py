@@ -337,6 +337,32 @@ def generate():
             "applied": applied,
         })
 
+    # Two confirmations from the same finished session. Upstream has no session id and
+    # counts both; the plugin's ADAPTER layer, not this lifecycle, suppresses the repeat.
+    life = L.Lifecycle("same-session-two-confirms", False, False)
+    same_session_steps = [
+        (0, "confirm", False, True, []),
+        (0, "confirm", False, True, []),
+    ]
+    for (step_now, verdict, fired, exercised, files) in same_session_steps:
+        life.update(step_now, verdict, fired, exercised, files)
+    vectors["lifecycle"].append({
+        "name": "same-session-two-confirms",
+        "high": False,
+        "drift": False,
+        "sessionId": "shared-session",
+        "steps": [
+            {"now": s[0], "verdict": s[1], "fired": s[2], "exercised": s[3],
+             "files": s[4], "sessionId": "shared-session"}
+            for s in same_session_steps
+        ],
+        "now": 0,
+        "final": lifecycle_dict(life),
+        "injectable": life.injectable(),
+        "score": round(life.score(0), 12),
+        "applied": [s[1] for s in same_session_steps],
+    })
+
     # ---- env facts: direct claim/render ------------------------------------------------
     claim_specs = [
         {

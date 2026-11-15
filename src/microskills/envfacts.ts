@@ -264,7 +264,6 @@ export function fold(
   fired: boolean,
   exercised: boolean,
   files: Iterable<string>,
-  sessionId = '',
 ): Verdict {
   let applied = verdict
   if (fact.family === 'form_repair' && exercised) {
@@ -273,7 +272,7 @@ export function fold(
     fact.params.contra_streak = next
     if (applied === 'contradict' && next < CONTRADICT_STREAK) applied = null
   }
-  fact.life.update(now, applied, fired, exercised, files, sessionId)
+  fact.life.update(now, applied, fired, exercised, files)
   if (applied === 'contradict' && fact.life.high && fact.life.state === 'CANDIDATE') {
     fact.life.state = 'RETIRED'
     fact.life.retiredAt = now
@@ -296,8 +295,12 @@ export interface EnvUpdateOptions {
   readonly resolved?: boolean | null
   /** Override the edited-file list from the digest. */
   readonly edited?: Iterable<string>
-  /** The finished session being folded; repeated folds of one session count once. */
-  readonly sessionId?: string
+  /**
+   * Adapter-owned verdict filter. The ported `fold`/`Lifecycle` stay upstream-pure; a
+   * caller may suppress a repeated confirmation (for example, another turn of one session)
+   * without teaching the lifecycle about sessions.
+   */
+  readonly verdictFilter?: (key: string, verdict: Verdict) => Verdict
 }
 
 export interface EnvTaskDigest {
@@ -330,8 +333,6 @@ export class EnvFactsDistiller {
   lastInjected: Set<string> = new Set()
   /** The most recent per-task verdicts (telemetry). */
   lastDigest: EnvTaskDigest | null = null
-  /** Session currently being folded; every fact in this pass shares it. */
-  private sessionId = ''
 
   constructor(options: EnvFactsOptions = {}) {
     this.maxFacts = options.maxFacts || MAX_FACTS
@@ -448,7 +449,8 @@ export class EnvFactsDistiller {
    * takes a path and observes it; here the digest is the caller's, so this stays pure.
    */
   update(digest: ObservedTask, options: EnvUpdateOptions = {}): void {
-    this.sessionId = options.sessionId ?? ''
+    const applyVerdict = (key: string, verdict: Verdict): Verdict =>
+      verdict === null || !options.verdictFilter ? verdict : options.verdictFilter(key, verdict)
     const obs = digest.obs
     const files = new Set(options.edited ?? digest.edited)
     const injected = new Set(this.lastInjected)
@@ -529,7 +531,8 @@ export class EnvFactsDistiller {
       if (aFailed || (bRan && !aRunnerOk)) verdict = 'confirm'
       else if (aRunnerOk) verdict = 'contradict'
       else verdict = null
-      fold(fact, this.now, verdict, fired, exercised, files, this.sessionId)
+      verdict = applyVerdict(fact.id, verdict)
+      fold(fact, this.now, verdict, fired, exercised, files)
       verdicts[fact.id] = [verdict, fired, exercised]
     }
 
@@ -580,8 +583,9 @@ export class EnvFactsDistiller {
           obs.some((observation) => observation.intent === fact.params.intent)
         const fired = missingNow || prevented
         const exercised = fired || contradicted
-        const verdict: Verdict = contradicted ? 'contradict' : fired ? 'confirm' : null
-        fold(fact, this.now, verdict, fired, exercised, files, this.sessionId)
+        let verdict: Verdict = contradicted ? 'contradict' : fired ? 'confirm' : null
+        verdict = applyVerdict(fact.id, verdict)
+        fold(fact, this.now, verdict, fired, exercised, files)
         verdicts[fact.id] = [verdict, fired, exercised]
       }
     }
@@ -636,7 +640,8 @@ export class EnvFactsDistiller {
       if (badLoaded) verdict = 'contradict'
       else if (badFailed || goodLoaded) verdict = 'confirm'
       else verdict = null
-      fold(fact, this.now, verdict, fired, exercised, files, this.sessionId)
+      verdict = applyVerdict(fact.id, verdict)
+      fold(fact, this.now, verdict, fired, exercised, files)
       verdicts[fact.id] = [verdict, fired, exercised]
     }
 
@@ -678,7 +683,8 @@ export class EnvFactsDistiller {
       if (goodFailed) verdict = 'contradict'
       else if (goodOk) verdict = 'confirm'
       else verdict = null
-      fold(fact, this.now, verdict, fired, exercised, files, this.sessionId)
+      verdict = applyVerdict(fact.id, verdict)
+      fold(fact, this.now, verdict, fired, exercised, files)
       verdicts[fact.id] = [verdict, fired, exercised]
     }
 
@@ -707,7 +713,8 @@ export class EnvFactsDistiller {
       if (contradicted) verdict = 'contradict'
       else if (fired) verdict = 'confirm'
       else verdict = null
-      fold(boundary, this.now, verdict, fired, exercised, files, this.sessionId)
+      verdict = applyVerdict(fid, verdict)
+      fold(boundary, this.now, verdict, fired, exercised, files)
       verdicts[fid] = [verdict, fired, exercised]
     }
 
@@ -733,7 +740,8 @@ export class EnvFactsDistiller {
       if (probes.some((observation) => observation.outcome === 'hit')) verdict = 'contradict'
       else if (probes.length > 0) verdict = 'confirm'
       else verdict = null
-      fold(probeFact, this.now, verdict, fired, exercised, files, this.sessionId)
+      verdict = applyVerdict(probeId, verdict)
+      fold(probeFact, this.now, verdict, fired, exercised, files)
       verdicts[probeId] = [verdict, fired, exercised]
     }
 
@@ -810,7 +818,6 @@ export function envFactToStored(fact: EnvFact, meta: EnvStoredMeta): StoredFact 
     drift: false,
     state: fact.life.state,
     confirms: fact.life.confirms.map(([index, files]) => [index, [...files]] as [number, string[]]),
-    ...(fact.life.sessionConfirms.some(Boolean) ? { confirmSessions: [...fact.life.sessionConfirms] } : {}),
     contradicts: [...fact.life.contradicts],
     fireNum: fact.life.fireNum,
     fireDen: fact.life.fireDen,
@@ -847,7 +854,6 @@ export function envFactFromStored(row: StoredFact, options: LifecycleOptions = {
   const fact = new EnvFact(row.key, parsed.family as EnvFactFamily, Boolean(row.high), parsed.params ?? {}, options)
   fact.life.state = row.state
   fact.life.confirms = (row.confirms ?? []).map(([index, files]) => [Number(index), [...(files ?? [])]] as [number, string[]])
-  fact.life.sessionConfirms = (row.confirmSessions ?? []).slice(0, fact.life.confirms.length)
   fact.life.contradicts = [...(row.contradicts ?? [])].map(Number)
   fact.life.fireNum = Number(row.fireNum ?? 0)
   fact.life.fireDen = Number(row.fireDen ?? 0)

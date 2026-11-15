@@ -76,6 +76,12 @@ export interface MicroskillsInput {
   readonly digest?: ObservedTask
   /** The repository name shown in the manual header; defaults to the project id. */
   readonly repoName?: string
+  /**
+   * Adapter-owned verdict filter. The ported lifecycle and envfacts fold stay upstream-pure;
+   * the service uses this to count one finished session as one confirmation even when several
+   * turns call the engine with the same task index.
+   */
+  readonly verdictFilter?: (key: string, verdict: Verdict) => Verdict
 }
 
 export interface MicroskillsResult {
@@ -188,7 +194,11 @@ export class MicroskillsEngine {
         if (fact) envDistiller.facts.set(fact.id, fact)
       }
       envDistiller.seedInjected(input.injectedIds)
-      envDistiller.update(digest, { resolved: null, edited, sessionId: source.sessionId })
+      envDistiller.update(digest, {
+        resolved: null,
+        edited,
+        ...(input.verdictFilter ? { verdictFilter: input.verdictFilter } : {}),
+      })
       // Write the folded environment facts back into the rows.
       const byKey = new Map(facts.map((row, index) => [row.key, index]))
       for (const fact of envDistiller.facts.values()) {
@@ -231,12 +241,13 @@ export class MicroskillsEngine {
       if (!text) continue
       const key = candidate.key
       const index = facts.findIndex((row) => row.key === key && !isEnvFactRow(row))
-      const verdict = verdicts[key] ?? 'confirm'
+      let verdict: Verdict = verdicts[key] ?? 'confirm'
+      if (input.verdictFilter) verdict = input.verdictFilter(key, verdict)
       let row: StoredFact
       if (index === -1) {
         const seedRow = emptyRow(key, text, candidate, at, source)
         const life = lifecycleFromStored(seedRow, { kPromote })
-        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files, source.sessionId)
+        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files)
         row = storedFactFromLifecycle(life, {
           id: factId(key),
           text,
@@ -253,7 +264,7 @@ export class MicroskillsEngine {
       } else {
         row = facts[index] as StoredFact
         const life = lifecycleFromStored(row, { kPromote })
-        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files, source.sessionId)
+        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files)
         applyLifecycleToStored(row, life)
         row.text = text
         row.kind = candidate.kind

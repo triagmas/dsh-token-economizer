@@ -1476,6 +1476,58 @@
    "applied": [
     "contradict"
    ]
+  },
+  {
+   "name": "same-session-two-confirms",
+   "high": false,
+   "drift": false,
+   "sessionId": "shared-session",
+   "steps": [
+    {
+     "now": 0,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [],
+     "sessionId": "shared-session"
+    },
+    {
+     "now": 0,
+     "verdict": "confirm",
+     "fired": false,
+     "exercised": true,
+     "files": [],
+     "sessionId": "shared-session"
+    }
+   ],
+   "now": 0,
+   "final": {
+    "key": "same-session-two-confirms",
+    "high": false,
+    "drift": false,
+    "state": "CANDIDATE",
+    "confirms": [
+     [
+      0,
+      []
+     ],
+     [
+      0,
+      []
+     ]
+    ],
+    "contradicts": [],
+    "fire_num": 0,
+    "fire_den": 2,
+    "promoted_at": null,
+    "retired_at": null
+   },
+   "injectable": false,
+   "score": 2.0,
+   "applied": [
+    "confirm",
+    "confirm"
+   ]
   }
  ],
  "env_claims": [

@@ -149,7 +149,9 @@ test('micro-skills parity vectors', { skip }, async (t) => {
     for (const row of vectors.lifecycle) {
       const life = new L.Lifecycle(row.name, row.high, row.drift)
       for (const step of row.steps) {
-        life.update(step.now, step.verdict, step.fired, step.exercised, step.files)
+        // `sessionId` is vector metadata only: the upstream lifecycle has no session
+        // concept, and the plugin adapter owns de-duplication.
+        life.update(step.now, step.verdict, step.fired, step.exercised, step.files, step.sessionId ?? '')
       }
       assert.deepEqual(life.toDict(), row.final, row.name)
       assert.equal(life.injectable(), row.injectable, `${row.name} injectable`)

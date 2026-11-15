@@ -578,6 +578,15 @@ export class EconomizerService implements EconomizerApi {
     if (config.microskillsEnabled && !session.isSubagent) {
       const skillsFile = await project.loadSkills()
       const engine = new MicroskillsEngine()
+      // Task index is one finished session. The lifecycle stays upstream-pure (it has no
+      // session concept); this adapter suppresses a confirmation the session already made.
+      const confirmedThisTask = new Set(
+        skillsFile.facts
+          .filter((row) => (row.confirms ?? []).some(([index]) => Number(index) === taskIndex))
+          .map((row) => row.key),
+      )
+      const verdictFilter = (key: string, verdict: 'confirm' | 'contradict' | null): 'confirm' | 'contradict' | null =>
+        verdict === 'confirm' && confirmedThisTask.has(key) ? null : verdict
       const result = engine.run({
         window: {
           projectId: project.meta.projectId,
@@ -595,6 +604,7 @@ export class EconomizerService implements EconomizerApi {
         policy: DEFAULT_REDACTION,
         injectedIds: runtime.blockIds,
         repoName: project.meta.name,
+        verdictFilter,
       })
       const injected = new Set(result.appliedFactIds)
       const retireDays = Math.max(0, config.microskillsRetireDays)
