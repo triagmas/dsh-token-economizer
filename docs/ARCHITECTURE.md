@@ -48,8 +48,9 @@ Python runtime is required; the upstream repository is vendored under
   deduplicated and superseded, capped by count and tokens, isolated per
   project, and redacted before storage.
 * **Tool pruning** — per-project, per-tool usage statistics (available, called,
-  errored), counted once per session, with the upstream protected work surface
-  and explicit allowlists/restores. Modes: `observe` (statistics only),
+  errored), with availability counted once per session and prompt evidence once
+  per human-initiated turn, plus the upstream protected work surface and
+  explicit allowlists/restores. Modes: `observe` (statistics only),
   `propose` (report candidates), `automatic` (deny eligible tools). Every hidden
   tool is one `restrict()` call; a restore is durable in the project row and can
   be made from the UI or `/economizer tools restore`. Orchestration/optional
