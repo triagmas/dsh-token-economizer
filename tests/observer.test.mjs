@@ -106,6 +106,37 @@ test('only a direct human prompt makes a turn user-initiated', () => {
   )
 })
 
+test('the prompt order before or after turn/start does not lose user-initiated', () => {
+  const { observer, summaries } = harness()
+  const main = session('s-order')
+  const message = (turn) => ({
+    type: 'user/message',
+    time: turn + 0.1,
+    data: {
+      id: `m-${turn}`,
+      role: 'user',
+      source: { kind: 'user' },
+      content: [{ type: 'text', text: 'go' }],
+    },
+  })
+  const start = (turn) => ({ type: 'turn/start', time: turn, data: { turn } })
+  const end = (turn) => ({ type: 'turn/end', time: turn + 0.2, data: { turn, reason: 'completed' } })
+
+  // DSH has emitted both orders: prompt -> turn/start, and turn/start -> prompt.
+  observer.handle(main, message(1))
+  observer.handle(main, start(1))
+  observer.handle(main, end(1))
+  observer.handle(main, start(2))
+  observer.handle(main, message(2))
+  observer.handle(main, end(2))
+
+  assert.deepEqual(
+    summaries.map((summary) => summary.userInitiated),
+    [true, true],
+    'both event orders keep the human prompt on its turn',
+  )
+})
+
 test('unmatched results and malformed events never throw or invent calls', async () => {
   const { observer, summaries, toolResults } = harness()
   const main = session('s-odd')

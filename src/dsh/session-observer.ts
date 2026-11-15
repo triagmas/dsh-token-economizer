@@ -198,7 +198,8 @@ export class SessionObserver {
           state.turn = numberOr(data.turn, state.turn)
           state.turnStarted = true
           state.turnStartAt = new Date(at).toISOString()
-          state.turnUserInitiated = false
+          // DSH emits the prompt either before or after turn/start. Do not clear the flag
+          // here: the only reset belongs to finish(), so both orders keep the prompt.
           this.hooks.onTurnStart(state.session, state.turn)
           break
         }
