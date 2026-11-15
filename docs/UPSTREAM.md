@@ -36,9 +36,21 @@ the pinned upstream Python modules.
 The plugin-layer original (`tokeneconomizer/plugin/fold.py::enough_evidence`) decides
 `(sessions >= toolprune_min_sessions and prompts >= toolprune_evidence) or sessions >=
 toolprune_sessions`. `prompt_streaks` counts the prompts of every session in which a
-never-used tool was available. This port counts one prompt per completed DSH turn in
-`unusedPrompts`, keeps `unusedSessions` for the session floor, and implements the same
-predicate in `src/toolprune/policy.ts::enoughEvidence`.
+never-used tool was available. This port counts one prompt per completed
+**user-initiated** DSH turn in `unusedPrompts`, keeps `unusedSessions` for the session
+floor, and implements the same predicate in `src/toolprune/policy.ts::enoughEvidence`.
+
+A turn is user-initiated only when it carries a `user/message` whose `source.kind` is
+`user` and which is not this plugin's own loop-guard redirect (marked with
+`source.generatedBy = "token-economizer-redirect"`). Scheduled deliveries
+(`source.kind = "schedule"`), goal continuation rounds (`"goal"`), runtime/context
+injections, and other synthetic user-role messages do not advance `unusedPrompts`.
+Subagent turns are skipped regardless (and workflow `agent()` children are subagents);
+a workflow tool call itself runs inside the caller's user turn and adds no prompt of its
+own. Rows migrated from releases without `unusedPrompts` inherit their
+`unusedSessions` count, matching upstream's `prompt_streaks or streaks` migration;
+after that the explicit counter is authoritative, so an autonomous-only session cannot
+become prompt evidence.
 
 The original multiplies both thresholds by `live_adapter.HIGH_RISK_FACTOR` for a
 host-declared high-risk capability class. DSH has no equivalent capability manifest, so

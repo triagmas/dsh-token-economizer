@@ -9,7 +9,7 @@
  */
 import { findRepoRoot } from '../core/paths.js'
 import { DEFAULT_REDACTION, sanitizeText } from '../core/redact.js'
-import { addUsage, EMPTY_USAGE, type ModelCallRecord, type ToolCallRecord, type UsageCounts } from '../core/types.js'
+import { addUsage, EMPTY_USAGE, REDIRECT_MESSAGE_SOURCE, type ModelCallRecord, type ToolCallRecord, type UsageCounts } from '../core/types.js'
 import { toUsageCounts } from './judge.js'
 
 /** Model-facing tool metadata captured once per session. */
@@ -47,6 +47,13 @@ export interface TurnSummary {
   readonly failedToolCalls: number
   readonly assistantText: string
   readonly partial: boolean
+  /**
+   * True only when the turn carried a direct human prompt (`user/message` with
+   * `source.kind === 'user'` and no redirect marker). Scheduled deliveries,
+   * goal rounds, runtime context, and the loop guard's own followup are not
+   * user-initiated; subagents are excluded separately.
+   */
+  readonly userInitiated: boolean
 }
 
 export interface ObserverHooks {
@@ -79,6 +86,7 @@ interface SessionState {
   step: number
   turnStartAt: string | null
   turnStarted: boolean
+  turnUserInitiated: boolean
   usage: UsageCounts
   failedToolCalls: number
   modelRequests: number
@@ -174,7 +182,14 @@ export class SessionObserver {
           state.turn = numberOr(data.turn, state.turn)
           state.turnStarted = true
           state.turnStartAt = new Date(at).toISOString()
+          state.turnUserInitiated = false
           this.hooks.onTurnStart(state.session, state.turn)
+          break
+        }
+        case 'user/message': {
+          const source = asRecord(data.source)
+          if (source.kind !== 'user' || source.generatedBy === REDIRECT_MESSAGE_SOURCE) break
+          state.turnUserInitiated = true
           break
         }
         case 'step/start': {
@@ -303,6 +318,7 @@ export class SessionObserver {
       failedToolCalls: state.failedToolCalls,
       assistantText: state.assistantText,
       partial: !state.turnStarted,
+      userInitiated: state.turnUserInitiated,
     }
     state.calls = []
     state.modelCalls = []
@@ -313,6 +329,7 @@ export class SessionObserver {
     state.toolCalls = 0
     state.turnStarted = false
     state.turnStartAt = null
+    state.turnUserInitiated = false
     state.droppedCalls = 0
     try {
       this.hooks.onTurnEnd(summary)
@@ -358,6 +375,7 @@ export class SessionObserver {
       step: 0,
       turnStartAt: null,
       turnStarted: false,
+      turnUserInitiated: false,
       usage: { ...EMPTY_USAGE },
       failedToolCalls: 0,
       modelRequests: 0,

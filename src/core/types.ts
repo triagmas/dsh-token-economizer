@@ -33,6 +33,14 @@ export const EMPTY_USAGE: Readonly<UsageCounts> = Object.freeze({
   totalTokens: 0,
 })
 
+/**
+ * `source.generatedBy` marker on the loop guard's own `followup` message.
+ * The message keeps `source.kind: 'user'` so the Harness renders it as a normal
+ * user-role turn, but it was not initiated by a human and must not advance
+ * prompt evidence.
+ */
+export const REDIRECT_MESSAGE_SOURCE = 'token-economizer-redirect'
+
 /** Add two usage records field by field. */
 export function addUsage(a: UsageCounts, b: UsageCounts): UsageCounts {
   return {

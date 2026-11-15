@@ -548,7 +548,11 @@ export class EconomizerService implements EconomizerApi {
     summary.calls.forEach((call, index) => {
       recordToolCall(toolsFile, call.name, !call.isError, index, call.at, session.sessionId)
     })
-    if (!session.isSubagent) {
+    // A prompt is a turn a human initiated. Scheduled deliveries, goal rounds,
+    // injected context, and this plugin's own followup redirect are not
+    // prompts; subagents are excluded separately. `undefined` keeps older
+    // callers/tests user-initiated by default.
+    if (!session.isSubagent && summary.userInitiated !== false) {
       recordUnusedPrompts(
         toolsFile,
         session.availableTools.map((tool) => ({ name: tool.name, descriptionTokens: tool.descriptionTokens })),

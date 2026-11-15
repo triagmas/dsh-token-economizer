@@ -84,7 +84,7 @@ async function setup(configOverrides = {}, options = {}) {
   return { home, store, service, config, redirects, configWrites, reconciles, judgeCalls }
 }
 
-async function finishTurn(service, { sessionId = 'session-1', turn = 1, calls = [], pickup = false, modelUsage = { inputTokens: 1000, outputTokens: 100 }, root = PROJECT } = {}) {
+async function finishTurn(service, { sessionId = 'session-1', turn = 1, calls = [], pickup = false, userInitiated = true, modelUsage = { inputTokens: 1000, outputTokens: 100 }, root = PROJECT } = {}) {
   const session = observed(sessionId, root)
   service.observe(session)
   service.beginTurn(session, turn)
@@ -108,6 +108,7 @@ async function finishTurn(service, { sessionId = 'session-1', turn = 1, calls = 
     failedToolCalls: calls.filter((entry) => entry.isError).length,
     assistantText: 'done',
     partial: false,
+    userInitiated,
   }
   // A detached verdict is picked up by the next tool result, inside the same turn.
   await service.flush()
@@ -220,6 +221,36 @@ test('subagent accounting can be switched off without losing the root metrics', 
     const status = await env.service.status({ sessionId: 'root-1' })
     assert.equal(status.totals.modelRequests, 1)
     assert.equal(status.totals.inputTokens, 1000)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('an autonomous-only session does not advance prompt evidence', async () => {
+  const env = await setup({ toolpruneMode: 'observe', toolpruneEvidence: 10, toolpruneMinSessions: 5 })
+  try {
+    await finishTurn(env.service, {
+      sessionId: 'session-1',
+      turn: 1,
+      calls: [call('edit', { path: '/work/economizer-project/a.ts' })],
+    })
+    await finishTurn(env.service, {
+      sessionId: 'session-2',
+      turn: 1,
+      userInitiated: false,
+      calls: [call('edit', { path: '/work/economizer-project/a.ts' })],
+    })
+    await finishTurn(env.service, {
+      sessionId: 'session-3',
+      turn: 1,
+      userInitiated: false,
+      calls: [call('edit', { path: '/work/economizer-project/a.ts' })],
+    })
+
+    const project = await env.store.project(PROJECT)
+    const tools = await project.loadTools()
+    assert.equal(tools.tools.rare_tool.unusedPrompts, 1, 'only the human turn is prompt evidence')
+    assert.equal(tools.tools.rare_tool.unusedSessions, 3, 'autonomous sessions still count for the session floor')
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }

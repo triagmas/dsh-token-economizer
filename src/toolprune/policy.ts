@@ -284,14 +284,15 @@ export function enoughEvidence(counts: EvidenceCounts, config: EvidenceSettings)
 }
 
 /**
- * Prompt evidence for a row. Old rows written before `unusedPrompts` existed fall back
- * to one prompt per unused session, matching upstream's `prompt_streaks or streaks`
- * migration for sessions recorded before prompts were counted.
+ * Prompt evidence for a row. `unusedPrompts` is authoritative once present. Storage
+ * migrates rows written before the counter existed from their unused-session count,
+ * matching upstream's `prompt_streaks or streaks` migration. Counting every unused
+ * session again here would turn scheduled/goal-only sessions into prompt evidence.
  */
 export function unusedPromptsFor(stat: ToolStat): number {
   const prompts = (stat as PolicyToolRow).unusedPrompts
-  if (isFiniteNumber(prompts) && prompts >= 0) return Math.max(prompts, stat.unusedSessions ?? 0)
-  return isFiniteNumber(stat.unusedSessions) ? stat.unusedSessions : 0
+  if (isFiniteNumber(prompts) && prompts >= 0) return prompts
+  return isFiniteNumber(stat.unusedSessions) && stat.unusedSessions > 0 ? stat.unusedSessions : 0
 }
 
 /** Build the catalog facts one audit needs. */

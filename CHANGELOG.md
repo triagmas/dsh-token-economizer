@@ -39,6 +39,11 @@ Fidelity fixes against Microsoft TokenEconomizer, pinned commit
   `systemPrompt.context.text(assembly)` on every request, the first lookup is
   reused, including an empty block and even before the project runtime is
   warm; a new session sees newer facts.
+- **Only human-initiated turns count as tool-pruning prompts.** Scheduled
+  deliveries, goal continuation rounds, injected context, and the loop guard's
+  own followup redirect no longer advance `unusedPrompts`; subagents are
+  already skipped. Rows written before the counter existed migrate from their
+  unused-session count, so existing evidence is preserved.
 - **Subagents are not loop-guarded.** `beginTurn`, `onToolResult` and
   `finishTurn` skip subagent sessions; the status view reports
   `loopguardIntervene=false` as "observing only" instead of implying redirects.

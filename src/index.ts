@@ -16,6 +16,7 @@
 import { randomUUID } from 'node:crypto'
 
 import { findRepoRoot } from './core/paths.js'
+import { REDIRECT_MESSAGE_SOURCE } from './core/types.js'
 import { Store } from './storage/store.js'
 import { checkCompatibility, detectDshVersion } from './dsh/version.js'
 import { ModelJudge } from './dsh/judge.js'
@@ -98,7 +99,7 @@ function redirectMessage(text: string): AnyRecord {
     id: randomUUID(),
     role: 'user',
     content: [{ type: 'text', text }],
-    source: { kind: 'user' },
+    source: { kind: 'user', generatedBy: REDIRECT_MESSAGE_SOURCE },
   }
 }
 

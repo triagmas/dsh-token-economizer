@@ -86,6 +86,36 @@ test('project store persists skills and tools atomically and isolates projects',
   }
 })
 
+test('legacy tool rows migrate session evidence to prompts, while explicit zero stays zero', async () => {
+  const root = await workspace()
+  try {
+    const store = new Store({ DSH_HOME: root })
+    await store.open('0.1.0', '0.2.2')
+    const projectRoot = join(root, 'work', 'legacy')
+    await mkdir(projectRoot, { recursive: true })
+    const project = await store.project(projectRoot)
+    await writeFile(
+      join(project.dir, 'tools.json'),
+      JSON.stringify({
+        schemaVersion: SCHEMA_VERSION,
+        tools: {
+          legacy_tool: { name: 'legacy_tool', calls: 0, unusedSessions: 4 },
+          autonomous_tool: { name: 'autonomous_tool', calls: 0, unusedSessions: 3, unusedPrompts: 0 },
+        },
+        pruned: [],
+        lastAuditTask: -1,
+        updatedAt: null,
+      }),
+    )
+
+    const tools = await project.loadTools()
+    assert.equal(tools.tools.legacy_tool.unusedPrompts, 4, 'pre-counter rows keep their session evidence')
+    assert.equal(tools.tools.autonomous_tool.unusedPrompts, 0, 'an explicit counter is authoritative')
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
 test('a newer schema fails closed instead of discarding data', async () => {
   const root = await workspace()
   try {

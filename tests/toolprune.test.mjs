@@ -54,7 +54,10 @@ function config(overrides = {}) {
 
 /** Observe `names` once per session, indices 0..n-1. */
 function observeSessions(file, sessions, protectedTools = [], allowlist = []) {
-  sessions.forEach((names, index) => observeToolAvailability(file, index, names, protectedTools, allowlist))
+  sessions.forEach((names, index) => {
+    observeToolAvailability(file, index, names, protectedTools, allowlist)
+    recordUnusedPrompts(file, names, index)
+  })
   return file
 }
 
@@ -178,6 +181,7 @@ test('candidate detection honors the evidence and minimum-session thresholds', (
   assert.deepEqual(proposedCandidates(file, propose), [], 'only two observations so far')
 
   observeToolAvailability(file, 2, names)
+  recordUnusedPrompts(file, names, 2)
   assert.deepEqual(
     proposedCandidates(file, propose),
     ['other_tool', 'unused_tool'],
@@ -351,7 +355,7 @@ test('reaudit tasks suppress pruning until the full catalog is reloaded', () => 
 
 test('evaluateCandidate explains every guard', () => {
   const facts = { catalogSize: 4, observedSessions: 3, reaudit: false }
-  const stat = (overrides = {}) => ({ ...newToolStat('some_tool'), unusedSessions: 3, sessionsAvailable: 3, ...overrides })
+  const stat = (overrides = {}) => ({ ...newToolStat('some_tool'), unusedSessions: 3, unusedPrompts: 3, sessionsAvailable: 3, ...overrides })
   const automatic = config({ toolpruneMode: 'automatic' })
 
   assert.deepEqual(evaluateCandidate(stat(), automatic, facts), { candidate: true, reason: 'candidate' })
@@ -365,7 +369,7 @@ test('evaluateCandidate explains every guard', () => {
   assert.equal(evaluateCandidate(stat({ calls: 1 }), automatic, facts).reason, 'used')
   assert.equal(evaluateCandidate(stat(), automatic, { ...facts, catalogSize: 2 }).reason, 'catalog-too-small')
   assert.equal(evaluateCandidate(stat(), automatic, { ...facts, observedSessions: 2 }).reason, 'insufficient-sessions')
-  assert.equal(evaluateCandidate(stat({ unusedSessions: 2 }), automatic, facts).reason, 'insufficient-evidence')
+  assert.equal(evaluateCandidate(stat({ unusedPrompts: 2 }), automatic, facts).reason, 'insufficient-evidence')
 
   const allowlisted = config({ toolpruneMode: 'automatic', toolpruneAllowlist: ['some_tool'] })
   assert.equal(isAllowlisted('some_tool', allowlisted), true)

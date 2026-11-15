@@ -80,6 +80,32 @@ test('pairs tool calls with results and accumulates provider usage per turn', as
   }
 })
 
+test('only a direct human prompt makes a turn user-initiated', () => {
+  const { observer, summaries } = harness()
+  const main = session('s-user')
+  const run = (turn, source) => {
+    observer.handle(main, { type: 'turn/start', time: turn, data: { turn } })
+    observer.handle(main, {
+      type: 'user/message',
+      time: turn + 0.1,
+      data: { id: `m-${turn}`, role: 'user', source, content: [{ type: 'text', text: 'go' }] },
+    })
+    observer.handle(main, { type: 'turn/end', time: turn + 0.2, data: { turn, reason: 'completed' } })
+  }
+
+  run(1, { kind: 'schedule' })
+  run(2, { kind: 'goal', goalId: 'goal-1', revision: 1, round: 1 })
+  run(3, { kind: 'user', generatedBy: 'token-economizer-redirect' })
+  run(4, { kind: 'runtime-context' })
+  run(5, { kind: 'user' })
+
+  assert.deepEqual(
+    summaries.map((summary) => summary.userInitiated),
+    [false, false, false, false, true],
+    'only the direct human prompt is user-initiated',
+  )
+})
+
 test('unmatched results and malformed events never throw or invent calls', async () => {
   const { observer, summaries, toolResults } = harness()
   const main = session('s-odd')
