@@ -119,11 +119,19 @@ session concept, matching upstream.
    * `toolprune`: the per-task LLM tool judge, Codex capability controller,
      explicit `refresh-catalog`/`measure`/`apply-pending` actions; this port
      uses evidence pruning, name/glob protection (`toolpruneAllowlist` accepts
-     `*`, `**` and `?`) and DSH-native `tools.restrict()`. Evidence is counted once per
-     session, the hidden set is persisted in `tools.json`, an explicit restore
-     is durable per project, and a periodic re-audit reloads the full catalog
-     for one turn. Orchestration/optional tools are prunable; the work surface
-     and human-control tools stay protected;
+     `*`, `**` and `?`) and DSH-native `tools.restrict()`. Prompt evidence is
+     the upstream `fold.py::enough_evidence` predicate: `unusedPrompts` advances
+     once per completed **human-initiated turn** (scheduled, goal, injected and
+     loop-guard-redirect messages do not count), while `unusedSessions` supplies
+     the session floor; a tool is eligible when
+     `(unusedSessions >= toolpruneMinSessions and unusedPrompts >=
+     toolpruneEvidence) or unusedSessions >= toolpruneSessions`. The hidden set
+     is persisted in `tools.json` and an explicit restore is durable per
+     project. Periodic full-catalog re-audit exists but is **off by default**
+     (`toolpruneReauditEvery=0`); setting it to N reloads the full catalog for
+     one task every N audit tasks instead of pruning. Orchestration/optional
+     tools are prunable; the work surface and human-control tools stay
+     protected;
    * `loopguard`: the `stop` mode and per-threshold pinning; the envelope IS
      persisted per project in `loopguard.json` and restored before the first
      decision (unlike an earlier version of this port, which rebuilt it per
