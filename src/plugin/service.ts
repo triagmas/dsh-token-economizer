@@ -241,6 +241,8 @@ export class EconomizerService implements EconomizerApi {
   private readonly pendingDecisions = new Map<string, { decision: LoopDecision; turn: number }>()
   private readonly redirectedTurns = new Map<string, number>()
   private readonly appliedIncidents = new Map<string, LoopIncident[]>()
+  /** Frozen knowledge block per session: DSH may re-evaluate `context.text(assembly)` per request. */
+  private readonly sessionBlocks = new Map<string, string>()
   private readonly inflight = new Set<Promise<unknown>>()
 
   constructor(options: ServiceOptions) {
@@ -497,6 +499,7 @@ export class EconomizerService implements EconomizerApi {
     this.guards.clear()
     this.sessions.clear()
     this.startedSessions.clear()
+    this.sessionBlocks.clear()
     await this.flush()
   }
 
@@ -858,14 +861,25 @@ export class EconomizerService implements EconomizerApi {
     return this.roots.get(sessionId) ?? null
   }
 
-  /** Injection text for an agent ('' when disabled or nothing learned). */
+  /**
+   * Injection text for an agent ('' when disabled or nothing learned).
+   *
+   * The prompt contribution is a function DSH may call for every model request. Upstream
+   * renders the block at session start and folds the session only after it ends, so a
+   * session must keep the same text for its whole life. The first non-empty lookup freezes
+   * the project block for that session id; a later session picks up the newer block.
+   */
   knowledgeForSession(sessionId: string): string {
     const config = this.config()
     if (config.mode !== 'active' || !config.microskillsEnabled || !config.microskillsInject) return ''
     const root = this.projectRootForSession(sessionId)
     if (!root) return ''
+    const frozen = this.sessionBlocks.get(sessionId)
+    if (frozen !== undefined) return frozen
     for (const runtime of this.projectRuntimes.values()) {
-      if (runtime.root === root) return runtime.block
+      if (runtime.root !== root) continue
+      if (runtime.block) this.sessionBlocks.set(sessionId, runtime.block)
+      return runtime.block
     }
     return ''
   }

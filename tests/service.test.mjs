@@ -624,6 +624,39 @@ test('the real injection path uses the engine block and the repo manual header',
   }
 })
 
+test('a session keeps the knowledge block it started with', async () => {
+  const env = await setup({ mode: 'active', microskillsInject: true, microskillsProfile: 'distiller' })
+  try {
+    const project = await env.store.project(PROJECT)
+    await project.updateSkills((file) => {
+      file.facts = [activeFact()]
+    })
+    await finishTurn(env.service, { turn: 1, calls: [] })
+    const first = env.service.knowledgeForSession('session-1')
+    assert.match(first, /Canonical test command is `pnpm test`\./)
+
+    // A later fold learns one more fact. The running session must not see its prompt change.
+    await project.updateSkills((file) => {
+      file.facts.push(
+        activeFact({
+          id: 'fact-2',
+          key: 'fact-key-2',
+          text: 'Run the linter with `pnpm lint`.',
+        }),
+      )
+    })
+    await finishTurn(env.service, { turn: 2, calls: [] })
+    assert.equal(env.service.knowledgeForSession('session-1'), first)
+    assert.equal(first.includes('pnpm lint'), false, 'the frozen block is the one the session started with')
+
+    env.service.registerRoot('session-2', PROJECT)
+    const next = env.service.knowledgeForSession('session-2')
+    assert.match(next, /pnpm lint/, 'a new session sees the newer block')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
 test('retireDays retires stale active facts that were not injected', async () => {
   const env = await setup({ mode: 'active', microskillsInject: true, microskillsProfile: 'envfacts', microskillsRetireDays: 1 })
   try {

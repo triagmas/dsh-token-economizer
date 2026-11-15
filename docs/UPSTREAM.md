@@ -68,7 +68,9 @@ once per session id even if the same session is folded again.
    `agent.ctx.tools.restrict()`, and the loop guard injects at most one redirect
    with `agent.followup()` — it never stops the agent. The redirect is written
    by the configured model only after a confident *stuck* verdict; every other
-   path uses the deterministic count template.
+   path uses the deterministic count template. DSH may evaluate the prompt
+   context text for every model request; the plugin freezes the rendered block
+   at the first non-empty lookup per session, as upstream renders per session.
 4. **No auto-update.** Upstream is vendored at a fixed revision. See below.
 5. **Not ported, by scope.** The following upstream components are deliberately
    absent rather than silently emulated:

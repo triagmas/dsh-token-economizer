@@ -28,7 +28,7 @@ no modification of the Harness installation.
 | --- | --- |
 | `session-observer.ts` | Bounded, exception-safe fold over `session/event`. Pairs `tool/call` with `tool/result`, accumulates provider `usage` from `assistant/message`, resolves subagent lineage and workspace root, and emits one `TurnSummary` per finished turn. |
 | `tools.ts` | Reads the visible tool catalog (`tools.definitions()`) with model-facing token estimates and applies a deny set through `agent.ctx.tools.restrict({ deny })`. |
-| `prompt.ts` | Registers the learned-knowledge contribution as a *prompt context* (durable user-role snapshot), never as system policy. |
+| `prompt.ts` | Registers the learned-knowledge contribution as a *prompt context* (durable user-role snapshot), never as system policy. The text callback may run per request, so the rendered block is frozen per session. |
 | `judge.ts` | Optional one-shot model call over `ctx.llm.stream()` with hard timeout, output cap, recursion guard, and usage accounting. |
 | `version.ts` | Reads `$DSH_INSTALL_DIR/package.json` and gates on the tested DSH range. |
 
