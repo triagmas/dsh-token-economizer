@@ -76,13 +76,16 @@ node --test tests/parity/*.test.mjs 43 tests,  43 pass, 0 fail
 node tests/smoke.mjs               PASS (host entry, fake Context)
 node benchmark/run.mjs             deterministic, offline, PASS
 test_drive (isolated DSH_HOME)     install/config/uninstall PASS; boot smoke skipped
-dsh --profile web --dump-config    token-economizer entry present
+GitHub install (fresh DSH_HOME)    headless 3 sessions + stuck session PASS
+dsh --profile web                  launch-token auth PASS (401 / 303 / 200)
 ```
 
-The headless task inside `test_drive` could not complete because the throwaway profile
-has no provider credentials; boot and uninstall were still verified. The live Web UI
-tabs were not re-checked in an authenticated browser in this review; the client bundle
-passes `node --check` and the settings API contract is covered by the route tests.
+The GitHub-install run exercised the installed artifact, not this checkout: three
+headless sessions, a stuck session with `delivery: "steer"`, and an authenticated Web
+status route (`mode: "active"`, all mechanisms effective). The full evidence and the
+remaining gaps are in [LIVE-CHECK.md](LIVE-CHECK.md). Browser rendering and a Web-chat
+session were not exercised; the client bundle passes `node --check` and the settings API
+contract is covered by the route tests.
 
 ## Upgrade procedure
 
