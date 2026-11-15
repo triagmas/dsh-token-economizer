@@ -197,13 +197,17 @@ export async function apply(ctx: ServicesLike, config: AnyRecord = {}): Promise<
       // the redirect after the current turn, so the guard decision is in-turn but the
       // delivery is not.
       if (!binding.agent.followup) return { ok: false, delivery: 'failed' as const }
-      try {
-        binding.agent.followup(message)
-        return { ok: true, delivery: 'followup-degraded' as const }
-      } catch (error) {
-        warn(logger, `could not deliver a loop redirect: ${error instanceof Error ? error.message : String(error)}`)
-        return { ok: false, delivery: 'failed' as const }
-      }
+      // The guard runs while the host is publishing the tool-result append; calling
+      // followup synchronously re-enters that publication and DSH rejects it. Defer one
+      // macrotask so the append is complete, and report the queue as delivered.
+      setImmediate(() => {
+        try {
+          binding.agent.followup?.(message)
+        } catch (error) {
+          warn(logger, `could not deliver a loop redirect: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      })
+      return { ok: true, delivery: 'followup-degraded' as const }
     },
     onToolsChanged: (root) => scheduleReconcile(root),
     revision: null,

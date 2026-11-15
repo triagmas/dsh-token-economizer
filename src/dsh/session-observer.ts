@@ -100,6 +100,22 @@ const MAX_PENDING_CALLS = 1000
 const MAX_TOOL_OUTPUT_BYTES = 2_000
 const MAX_ASSISTANT_TEXT_BYTES = 4_000
 
+/**
+ * DSH's bash tool appends `[exit code: N]` to the result text and leaves
+ * `message.isError` false for an ordinary non-zero exit. The marker is the
+ * outcome signal the loop guard needs; `isError` alone misses every failed
+ * shell command in a live session.
+ */
+const DSH_EXIT_CODE_RE = /\[exit code:\s*(\d+)\]\s*$/m
+
+function toolResultIsError(message: Record<string, unknown>, rawOutput: string, toolName: string): boolean {
+  if (message.isError === true) return true
+  // Only the shell tool appends this marker; arbitrary tool text must not look like an exit.
+  if (toolName !== 'bash') return false
+  const match = DSH_EXIT_CODE_RE.exec(rawOutput)
+  return match !== null && Number(match[1]) !== 0
+}
+
 /** Cheap, bounded shape checks so an unknown event never crashes the fold. */
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {}
@@ -222,7 +238,8 @@ export class SessionObserver {
           const pending = callId ? state.pending.get(callId) : undefined
           if (!pending) break // resumed history: no accepted call to pair with
           state.pending.delete(callId)
-          const output = sanitizeText(textOfContent(message.content), {
+          const rawOutput = textOfContent(message.content)
+          const output = sanitizeText(rawOutput, {
             ...DEFAULT_REDACTION,
             maxTextBytes: MAX_TOOL_OUTPUT_BYTES,
           })
@@ -232,7 +249,7 @@ export class SessionObserver {
             argumentsText: pending.argumentsText.slice(0, 4_000),
             args: pending.args,
             output,
-            isError: message.isError === true,
+            isError: toolResultIsError(message, rawOutput, pending.name),
             turn: numberOr(data.turn, pending.turn),
             step: numberOr(data.step, pending.step),
             at,

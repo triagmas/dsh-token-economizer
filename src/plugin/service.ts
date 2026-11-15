@@ -421,6 +421,17 @@ export class EconomizerService implements EconomizerApi {
     if (this.redirectedTurns.get(sessionId) === turn) return
     const config = this.config()
     if (config.mode !== 'active' || !config.loopguardIntervene || !decision.apply) return
+    // Record the incident before handing the redirect to the agent. `followup` can start
+    // the next turn synchronously, and that turn may finish and read `appliedIncidents`
+    // before this function resumes; recording afterwards loses the incident entirely.
+    const incident: LoopIncident = {
+      ...decision.incident,
+      detail: { ...decision.incident.detail, delivery: 'followup-degraded' },
+    }
+    const incidents = this.appliedIncidents.get(sessionId) ?? []
+    incidents.push(incident)
+    this.appliedIncidents.set(sessionId, incidents)
+    this.redirectedTurns.set(sessionId, turn)
     let delivered: RedirectDelivery = false
     try {
       delivered = this.options.applyRedirect?.(sessionId, decision.nudge ?? '') ?? false
@@ -428,16 +439,15 @@ export class EconomizerService implements EconomizerApi {
       this.logWarn('loop redirect delivery', error)
     }
     const ok = typeof delivered === 'boolean' ? delivered : delivered.ok
-    if (!ok) return
-    const delivery = typeof delivered === 'boolean' ? 'followup-degraded' : (delivered.delivery ?? 'followup-degraded')
-    this.redirectedTurns.set(sessionId, turn)
-    const incident: LoopIncident = {
-      ...decision.incident,
-      detail: { ...decision.incident.detail, delivery },
+    if (!ok) {
+      const remaining = incidents.filter((entry) => entry !== incident)
+      if (remaining.length) this.appliedIncidents.set(sessionId, remaining)
+      else this.appliedIncidents.delete(sessionId)
+      if (this.redirectedTurns.get(sessionId) === turn) this.redirectedTurns.delete(sessionId)
+      return
     }
-    const incidents = this.appliedIncidents.get(sessionId) ?? []
-    incidents.push(incident)
-    this.appliedIncidents.set(sessionId, incidents)
+    const delivery = typeof delivered === 'boolean' ? 'followup-degraded' : (delivered.delivery ?? 'followup-degraded')
+    incident.detail = { ...incident.detail, delivery }
     this.logger.info?.(`token-economizer: loop redirect delivered (${delivery}) for ${sessionId}`)
   }
 
@@ -497,11 +507,14 @@ export class EconomizerService implements EconomizerApi {
   }
 
   async dispose(): Promise<void> {
+    // Finalize queued turns first: they read `guards` to record the learned envelope
+    // and any delivered incidents. Clearing before `flush()` silently loses both, which
+    // is exactly what a short-lived headless run exposes (turn end, then dispose).
+    await this.flush()
     this.guards.clear()
     this.sessions.clear()
     this.startedSessions.clear()
     this.sessionBlocks.clear()
-    await this.flush()
   }
 
   private logWarn(where: string, error: unknown): void {

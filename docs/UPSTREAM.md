@@ -83,7 +83,10 @@ session concept, matching upstream.
    `agent.followup(message)`, recorded as `followup-degraded`. DSH exposes
    `agent.steer`, but this port does not call it or `agent.inject()`. The
    redirect therefore arrives **after the current turn**, not inside it, and
-   upstream's in-turn behavior is not achieved. It never stops the agent. The
+   upstream's in-turn behavior is not achieved. DSH rejects a `followup` issued
+   while the tool-result append is still being published, so the adapter queues
+   it one macrotask later; a rejected delivery is logged, never thrown. It never
+   stops the agent. The
    redirect is written by the configured model only
    after a confident *stuck* verdict and only when both `loopguardIntervene`
    and `loopguardJudge` are on; every other path uses the deterministic count

@@ -75,6 +75,9 @@ async function setup(configOverrides = {}, options = {}) {
     judge,
     applyRedirect: (sessionId, text) => {
       redirects.push({ sessionId, text })
+      // Lets a test observe the service state at the moment the redirect is handed to
+      // the agent, which is where a re-entrant followup can race the incident bookkeeping.
+      options.onRedirect?.({ service, sessionId, text })
       return options.redirectDelivery ?? true
     },
     onToolsChanged: (root) => reconciles.push(root),
@@ -450,13 +453,13 @@ test('active mode delivers the model-written redirect, not the count template', 
     for (let turn = 1; turn <= 5; turn += 1) {
       await finishTurn(env.service, {
         turn,
-        calls: Array.from({ length: 30 }, () => call('bash', { command: 'pnpm test' }, false, '2 passed in 0.01s')),
+        calls: [call('bash', { command: 'pnpm test' }, false, '2 passed in 0.01s')],
       })
     }
     await finishTurn(env.service, {
       turn: 6,
       pickup: true,
-      calls: Array.from({ length: 22 }, () =>
+      calls: Array.from({ length: 10 }, () =>
         call('bash', { command: 'pnpm test' }, true, 'FAILED tests/test_app.py::test_add - AssertionError: 1 != 2'),
       ),
     })
@@ -527,6 +530,41 @@ test('a delayed followup redirect records its delivery mode and a still-stuck fo
       history.incidents.some((incident) => incident.kind === 'still-stuck'),
       'a repeat after the redirect is recorded as still-stuck',
     )
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('a redirect is recorded before followup can start the next turn', async () => {
+  let serviceAtDelivery = null
+  let appliedAtDelivery = null
+  const env = await setup(
+    { mode: 'active', loopguardIntervene: true, loopguardJudge: true },
+    {
+      onRedirect: ({ service, sessionId }) => {
+        serviceAtDelivery = sessionId
+        appliedAtDelivery = service.appliedIncidents.get(sessionId)?.length ?? 0
+      },
+    },
+  )
+  try {
+    for (let turn = 1; turn <= 5; turn += 1) {
+      await finishTurn(env.service, {
+        turn,
+        calls: Array.from({ length: 30 }, () => call('bash', { command: 'pnpm test' }, false, '2 passed in 0.01s')),
+      })
+    }
+    await finishTurn(env.service, {
+      turn: 6,
+      pickup: true,
+      calls: Array.from({ length: 22 }, () =>
+        call('bash', { command: 'pnpm test' }, true, 'FAILED tests/test_app.py::test_add - AssertionError: 1 != 2'),
+      ),
+    })
+    assert.equal(serviceAtDelivery, 'session-1')
+    assert.equal(appliedAtDelivery, 1, 'the incident is visible before followup returns')
+    const history = await env.service.loops({ sessionId: 'session-1' })
+    assert.ok(history.incidents.some((incident) => incident.intervention === 'nudge'))
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }
@@ -786,6 +824,45 @@ test('a completed turn persists the learned loop-guard envelope', async () => {
     const data = JSON.parse(raw)
     assert.ok(Array.isArray(data.resolved_turns))
     assert.ok(data.resolved_turns.length >= 1)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('dispose flushes a queued turn before clearing the loop guard', async () => {
+  const env = await setup({ mode: 'active', loopguardEnabled: true })
+  try {
+    const session = observed('session-dispose')
+    env.service.observe(session)
+    env.service.beginTurn(session, 1)
+    env.service.onToolResult(session, call('bash', { command: 'pnpm test' }, false, '2 passed'))
+    const summary = {
+      session,
+      turn: 1,
+      startedAt: '2026-01-01T00:00:00.000Z',
+      endedAt: '2026-01-01T00:01:00.000Z',
+      calls: [call('bash', { command: 'pnpm test' }, false, '2 passed')],
+      modelCalls: [
+        {
+          model: 'gpt-5.4',
+          provider: 'openai',
+          usage: { inputTokens: 1000, outputTokens: 100, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, totalTokens: 1100 },
+          at: '2026-01-01T00:01:00.000Z',
+        },
+      ],
+      usage: { inputTokens: 1000, outputTokens: 100 },
+      failedToolCalls: 1,
+      assistantText: 'done',
+      partial: false,
+      userInitiated: true,
+    }
+    env.service.onTurnEnd(summary)
+    // No explicit flush: shutdown must drain the queued finalize while the guard still exists.
+    await env.service.dispose()
+    const project = await env.store.project(PROJECT)
+    const data = JSON.parse(await readFile(join(project.dir, 'loopguard.json'), 'utf8'))
+    assert.ok(Array.isArray(data.resolved_turns))
+    assert.ok(data.resolved_turns.length >= 1, 'the envelope survives a headless shutdown')
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }

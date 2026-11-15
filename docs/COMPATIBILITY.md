@@ -65,7 +65,7 @@ installation.
 ## Verification evidence (this checkout)
 
 ```text
-node --test tests/*.test.mjs       217 tests, 217 pass, 0 fail
+node --test tests/*.test.mjs       228 tests, 228 pass, 0 fail
 node --test tests/parity/*.test.mjs 43 tests,  43 pass, 0 fail
 node tests/smoke.mjs               PASS (host entry, fake Context)
 node benchmark/run.mjs             deterministic, offline, PASS

@@ -167,3 +167,49 @@ test('flush emits a partial summary for an interrupted turn', async () => {
   assert.equal(summaries[0].partial, true)
   assert.equal(summaries[0].usage.inputTokens, 7)
 })
+
+test('a non-zero DSH exit marker is a failed call even when isError is false', () => {
+  const { observer, toolResults } = harness()
+  const main = session('s-exit-code')
+  observer.handle(main, { type: 'turn/start', time: 1, data: { turn: 1 } })
+  observer.handle(main, { type: 'tool/call', time: 2, data: { turn: 1, step: 1, callId: 'c-bash', name: 'bash', arguments: '{"command":"false"}' } })
+  observer.handle(main, {
+    type: 'tool/result',
+    time: 3,
+    data: {
+      turn: 1,
+      step: 1,
+      message: {
+        isError: false,
+        source: { kind: 'tool', callId: 'c-bash' },
+        content: [{ type: 'text', text: '[stderr]\nERROR: synthetic failure\n[exit code: 1]' }],
+      },
+    },
+  })
+
+  assert.equal(toolResults.length, 1)
+  assert.equal(toolResults[0].isError, true, 'the exit marker is the host outcome signal for bash')
+})
+
+test('a zero DSH exit marker stays successful', () => {
+  const { observer, toolResults } = harness()
+  const main = session('s-exit-zero')
+  observer.handle(main, { type: 'turn/start', time: 1, data: { turn: 1 } })
+  observer.handle(main, { type: 'tool/call', time: 2, data: { turn: 1, step: 1, callId: 'c-ok', name: 'bash', arguments: '{"command":"true"}' } })
+  observer.handle(main, {
+    type: 'tool/result',
+    time: 3,
+    data: {
+      turn: 1,
+      step: 1,
+      message: {
+        isError: false,
+        source: { kind: 'tool', callId: 'c-ok' },
+        content: [{ type: 'text', text: '[exit code: 0]' }],
+      },
+    },
+  })
+
+  assert.equal(toolResults.length, 1)
+  assert.equal(toolResults[0].isError, false)
+})

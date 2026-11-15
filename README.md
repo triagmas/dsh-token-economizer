@@ -157,7 +157,7 @@ npm run check:dist       # committed lib/ matches a fresh build; client parses
 Last recorded results in this checkout:
 
 ```text
-unit/integration: 224 tests, 224 pass, 0 fail
+unit/integration: 228 tests, 228 pass, 0 fail
 parity (pinned Python upstream): 43 tests, 43 pass, 0 fail
 smoke: PASS
 install smoke (isolated DSH_HOME): local and GitHub install/patch/uninstall PASS; headless boot skipped in the last drives
@@ -187,6 +187,8 @@ Benchmark summary (synthetic but shipped code paths; see [docs/BENCHMARK.md](doc
   does not call it. A confirmed loop redirect is queued with the
   public `agent.followup` and arrives after the current turn; the guard decision is still
   made from the in-turn tool evidence, but upstream's in-turn nudge is not achieved.
+  DSH rejects a followup issued while the tool-result append is still being published, so
+  the adapter queues the call one macrotask later; a rejection is logged, never thrown.
 * Shell edits are detected from Bash commands (`sed -i`, `perl -pi`, redirects and
   `tee`, inline Python writes, `patch`/`git apply`, `apply_patch`); a write whose
   target cannot be read counts as `(patch)` / `(script)`, as upstream does.
