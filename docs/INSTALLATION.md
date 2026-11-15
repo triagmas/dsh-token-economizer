@@ -91,8 +91,9 @@ dsh --profile web --dump-config | grep token-economizer
   - id: token-economizer
     name: dsh-token-economizer
 install smoke in an isolated DSH_HOME (test_drive):
-  install PASS, config patch effective PASS, uninstall PASS
-  (the last headless-boot stage was skipped in that drive)
+  local path: install PASS, config patch effective PASS, uninstall PASS
+  GitHub:     install PASS, config patch effective PASS, uninstall PASS
+  (the last headless-boot stage was skipped in those drives)
 ```
 
 The Web UI is served by a process that mounted its bundles at boot. After installing,

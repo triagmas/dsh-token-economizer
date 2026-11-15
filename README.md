@@ -153,7 +153,7 @@ Last recorded results in this checkout:
 unit/integration: 204 tests, 204 pass, 0 fail
 parity (pinned Python upstream): 40 tests, 40 pass, 0 fail
 smoke: PASS
-install smoke (isolated DSH_HOME): install/patch/uninstall PASS; headless boot skipped in the last drive
+install smoke (isolated DSH_HOME): local and GitHub install/patch/uninstall PASS; headless boot skipped in the last drives
 ```
 
 Benchmark summary (synthetic but shipped code paths; see [docs/BENCHMARK.md](docs/BENCHMARK.md)):
