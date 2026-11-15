@@ -75,7 +75,7 @@ async function setup(configOverrides = {}, options = {}) {
     judge,
     applyRedirect: (sessionId, text) => {
       redirects.push({ sessionId, text })
-      return true
+      return options.redirectDelivery ?? true
     },
     onToolsChanged: (root) => reconciles.push(root),
   })
@@ -84,17 +84,18 @@ async function setup(configOverrides = {}, options = {}) {
   return { home, store, service, config, redirects, configWrites, reconciles, judgeCalls }
 }
 
-async function finishTurn(service, { sessionId = 'session-1', turn = 1, calls = [], modelUsage = { inputTokens: 1000, outputTokens: 100 }, root = PROJECT } = {}) {
+async function finishTurn(service, { sessionId = 'session-1', turn = 1, calls = [], pickup = false, modelUsage = { inputTokens: 1000, outputTokens: 100 }, root = PROJECT } = {}) {
   const session = observed(sessionId, root)
   service.observe(session)
   service.beginTurn(session, turn)
-  for (const entry of calls) service.onToolResult(session, entry)
-  service.onTurnEnd({
+  const tagged = calls.map((entry) => ({ ...entry, turn }))
+  for (const entry of tagged) service.onToolResult(session, entry)
+  const summary = {
     session,
     turn,
     startedAt: '2026-01-01T00:00:00.000Z',
     endedAt: `2026-01-01T00:0${turn}:00.000Z`,
-    calls,
+    calls: tagged,
     modelCalls: [
       {
         model: 'gpt-5.4',
@@ -107,7 +108,14 @@ async function finishTurn(service, { sessionId = 'session-1', turn = 1, calls = 
     failedToolCalls: calls.filter((entry) => entry.isError).length,
     assistantText: 'done',
     partial: false,
-  })
+  }
+  // A detached verdict is picked up by the next tool result, inside the same turn.
+  await service.flush()
+  if (pickup) {
+    service.onToolResult(session, { ...call(), turn })
+    await service.flush()
+  }
+  service.onTurnEnd(summary)
   await service.flush()
 }
 
@@ -416,6 +424,7 @@ test('active mode delivers the model-written redirect, not the count template', 
     }
     await finishTurn(env.service, {
       turn: 6,
+      pickup: true,
       calls: Array.from({ length: 22 }, () =>
         call('bash', { command: 'pnpm test' }, true, 'FAILED tests/test_app.py::test_add - AssertionError: 1 != 2'),
       ),
@@ -428,6 +437,64 @@ test('active mode delivers the model-written redirect, not the count template', 
     assert.ok(
       env.judgeCalls.some((request) => request.system.includes('Write a SHORT redirect')),
       'the writer was asked for the redirect',
+    )
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('an in-turn redirect records its delivery mode and a still-stuck follow-up', async () => {
+  const env = await setup(
+    { mode: 'active', loopguardIntervene: true, loopguardJudge: true },
+    { redirectDelivery: { ok: true, delivery: 'steer' } },
+  )
+  try {
+    for (let turn = 1; turn <= 5; turn += 1) {
+      await finishTurn(env.service, {
+        turn,
+        calls: Array.from({ length: 30 }, () => call('bash', { command: 'pnpm test' }, false, '2 passed in 0.01s')),
+      })
+    }
+    const session = observed('session-1', PROJECT)
+    env.service.observe(session)
+    env.service.beginTurn(session, 6)
+    const failures = () =>
+      Array.from({ length: 22 }, () =>
+        call('bash', { command: 'pnpm test' }, true, 'FAILED tests/test_app.py::test_add - AssertionError: 1 != 2'),
+      ).map((entry) => ({ ...entry, turn: 6 }))
+
+    for (const entry of failures()) env.service.onToolResult(session, entry)
+    await env.service.flush()
+    env.service.onToolResult(session, { ...call(), turn: 6 })
+    assert.equal(env.redirects.length, 1, 'the first verdict redirects')
+
+    // After the redirect budget is spent the next verdict is the "still stuck" notice,
+    // never a second steer and never a turn stop.
+    for (const entry of failures()) env.service.onToolResult(session, entry)
+    await env.service.flush()
+    env.service.onToolResult(session, { ...call(), turn: 6 })
+    env.service.onTurnEnd({
+      session,
+      turn: 6,
+      startedAt: '2026-01-01T00:00:00.000Z',
+      endedAt: '2026-01-01T00:06:00.000Z',
+      calls: failures(),
+      modelCalls: [],
+      usage: { inputTokens: 0, outputTokens: 0 },
+      failedToolCalls: 22,
+      assistantText: 'done',
+      partial: false,
+    })
+    await env.service.flush()
+
+    assert.equal(env.redirects.length, 1, 'at most one redirect per turn')
+    const history = await env.service.loops({ sessionId: 'session-1' })
+    const redirect = history.incidents.find((incident) => incident.intervention === 'nudge')
+    assert.ok(redirect, 'the applied redirect is recorded')
+    assert.equal(redirect.detail.delivery, 'steer', 'the incident names the delivery mechanism')
+    assert.ok(
+      history.incidents.some((incident) => incident.kind === 'still-stuck'),
+      'a repeat after the redirect is recorded as still-stuck',
     )
   } finally {
     await rm(env.home, { recursive: true, force: true })
@@ -732,6 +799,7 @@ test('a restarted process restores the loop-guard envelope before judging', asyn
     const second = await setup({ mode: 'active', loopguardIntervene: true }, { home: first.home })
     await finishTurn(second.service, {
       turn: 1,
+      pickup: true,
       calls: Array.from({ length: 8 }, () => call('bash', { command: 'pnpm test' }, true, 'FAILED tests/test_app.py::test_add - AssertionError: 1 != 2')),
     })
     assert.ok(second.judgeCalls.length > 0, 'the judge is available on a cold process')

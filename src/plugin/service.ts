@@ -79,6 +79,10 @@ import type {
   ToolsActionPayload,
 } from './service-api.js'
 
+export type RedirectDelivery =
+  | boolean
+  | { ok: boolean; delivery?: 'steer' | 'followup-degraded' | 'failed' }
+
 export interface Logger {
   info?(message: string): void
   warn(message: string): void
@@ -108,8 +112,8 @@ export interface ServiceOptions {
   /** Persist a configuration patch through the Host config editor. */
   writeConfig?(patch: Record<string, unknown>): Promise<void>
   judge?: JudgeRunner | null
-  /** Inject a loop redirect into the agent bound to this session. */
-  applyRedirect?(sessionId: string, text: string): boolean
+  /** Deliver a loop redirect into the agent bound to this session. */
+  applyRedirect?(sessionId: string, text: string): RedirectDelivery | boolean
   /** Ask the Host to re-reconcile tool restrictions for a project ('' = every project). */
   onToolsChanged?(projectRoot: string): void
   revision?: number | string | null
@@ -232,6 +236,11 @@ export class EconomizerService implements EconomizerApi {
   private readonly judgeTurnUsage = new Map<string, UsageCounts>()
   private readonly unobserved = new Set<string>()
   private readonly startedSessions = new Set<string>()
+  private readonly judging = new Set<string>()
+  private readonly decisionDirty = new Set<string>()
+  private readonly pendingDecisions = new Map<string, { decision: LoopDecision; turn: number }>()
+  private readonly redirectedTurns = new Map<string, number>()
+  private readonly appliedIncidents = new Map<string, LoopIncident[]>()
   private readonly inflight = new Set<Promise<unknown>>()
 
   constructor(options: ServiceOptions) {
@@ -334,6 +343,8 @@ export class EconomizerService implements EconomizerApi {
 
   beginTurn(session: ObservedSession, turn = 1): void {
     this.judgeTurnUsage.set(session.sessionId, emptyUsage())
+    // A verdict from the previous turn must never leak into this one.
+    this.pendingDecisions.delete(session.sessionId)
     const config = this.config()
     const projectRoot = session.projectRoot ?? this.roots.get(session.sessionId) ?? this.roots.get(session.rootSessionId) ?? null
     if (projectRoot) this.ensureSessionStarted(session.sessionId, projectRoot)
@@ -373,8 +384,90 @@ export class EconomizerService implements EconomizerApi {
     engine.onTurnStart(turn)
   }
 
+  /**
+   * Fold one tool result. The loop guard decides here, in the background, and a later tool
+   * result picks the verdict up. That is the DSH equivalent of upstream's held `PostToolUse`
+   * decision: the agent never waits for the paid judge inside the tool boundary.
+   */
   onToolResult(session: ObservedSession, record: ToolCallRecord): void {
-    this.guards.get(session.sessionId)?.onToolCall(record)
+    if (session.isSubagent) return
+    const guard = this.guards.get(session.sessionId)
+    if (!guard) return
+    guard.onToolCall(record)
+    this.pickUpDecision(session.sessionId, guard)
+    this.scheduleDecision(session.sessionId, guard)
+  }
+
+  /** Deliver a decision that was produced after an earlier tool result. */
+  private pickUpDecision(sessionId: string, guard: LoopGuardEngine): void {
+    const held = this.pendingDecisions.get(sessionId)
+    if (!held) return
+    const turn = guard.stateSnapshot().turn
+    this.pendingDecisions.delete(sessionId)
+    if (held.turn !== turn) return
+    const decision = held.decision
+    if (decision.action !== 'redirect') {
+      const redirected = this.redirectedTurns.get(sessionId) === turn
+      if (redirected && decision.incident.detail?.wouldAbort) {
+        const incidents = this.appliedIncidents.get(sessionId) ?? []
+        incidents.push({ ...decision.incident, kind: 'still-stuck', intervention: 'notice' })
+        this.appliedIncidents.set(sessionId, incidents)
+      }
+      return
+    }
+    if (this.redirectedTurns.get(sessionId) === turn) return
+    const config = this.config()
+    if (config.mode !== 'active' || !config.loopguardIntervene || !decision.apply) return
+    let delivered: RedirectDelivery = false
+    try {
+      delivered = this.options.applyRedirect?.(sessionId, decision.nudge ?? '') ?? false
+    } catch (error) {
+      this.logWarn('loop redirect delivery', error)
+    }
+    const ok = typeof delivered === 'boolean' ? delivered : delivered.ok
+    if (!ok) return
+    const delivery = typeof delivered === 'boolean' ? 'followup-degraded' : (delivered.delivery ?? 'followup-degraded')
+    this.redirectedTurns.set(sessionId, turn)
+    const incident: LoopIncident = {
+      ...decision.incident,
+      detail: { ...decision.incident.detail, delivery },
+    }
+    const incidents = this.appliedIncidents.get(sessionId) ?? []
+    incidents.push(incident)
+    this.appliedIncidents.set(sessionId, incidents)
+    this.logger.info?.(`token-economizer: loop redirect delivered (${delivery}) for ${sessionId}`)
+  }
+
+  /** Start one detached decision per turn; the guard itself enforces its sampling gaps. */
+  private scheduleDecision(sessionId: string, guard: LoopGuardEngine): void {
+    if (this.pendingDecisions.has(sessionId)) return
+    if (this.judging.has(sessionId)) {
+      // Calls that arrived while the judge was thinking are folded into one later decision.
+      this.decisionDirty.add(sessionId)
+      return
+    }
+    const turn = guard.stateSnapshot().turn
+    this.judging.add(sessionId)
+    const task = guard
+      .decide()
+      .then((decision) => {
+        const state = guard.stateSnapshot()
+        if (state.turn !== turn || state.turnEnded) return
+        // A plain "nothing to do" is not held: the next result may add evidence, and the
+        // final decision must see the whole burst of calls, not only the first one.
+        if (decision.action === 'redirect' || decision.incident.detail?.wouldAbort) {
+          this.pendingDecisions.set(sessionId, { decision, turn })
+        }
+      })
+      .catch((error: unknown) => this.logWarn('loop guard decision', error))
+      .finally(() => {
+        this.judging.delete(sessionId)
+        if (this.decisionDirty.delete(sessionId) && !this.pendingDecisions.has(sessionId)) {
+          this.scheduleDecision(sessionId, guard)
+        }
+      })
+    this.inflight.add(task)
+    void task.finally(() => this.inflight.delete(task))
   }
 
   onAssistantText(session: ObservedSession, text: string): void {
@@ -391,7 +484,12 @@ export class EconomizerService implements EconomizerApi {
 
   /** Wait for every queued turn finalize (tests, graceful shutdown). */
   async flush(): Promise<void> {
-    await Promise.allSettled([...this.inflight])
+    // A detached decision can schedule its successor while we await it; drain until both
+    // sets are empty so tests and graceful shutdown observe the settled state.
+    while (this.inflight.size > 0) {
+      await Promise.allSettled([...this.inflight])
+      await this.queue.drain()
+    }
     await this.queue.drain()
   }
 
@@ -562,12 +660,9 @@ export class EconomizerService implements EconomizerApi {
     // --- loop guard ---------------------------------------------------------
     const guard = this.guards.get(session.sessionId)
     if (guard && config.loopguardEnabled) {
-      // Restore the repository envelope loaded by `projectRuntime`; without it the paid
-      // judge is skipped on a cold process (upstream persists this snapshot on disk).
-      guard.setEnvelopeSnapshot(runtime.envelope)
-      // Decide while the turn is still open: `onTurnEnd` closes the observation window and
-      // must run after the verdict, or every turn looks like "no observation".
-      const decision = await this.safeDecide(guard)
+      // The verdict was produced by `onToolResult` and delivered when a later tool result
+      // picked it up. Closing the turn only records what actually happened; it must never
+      // deliver a post-turn follow-up (upstream's queued/undelivered distinction).
       guard.onTurnEnd({ stoppedNormally: true })
       const snapshot = guard.envelopeSnapshot()
       runtime.envelope = snapshot
@@ -576,29 +671,27 @@ export class EconomizerService implements EconomizerApi {
       } catch (error) {
         this.logWarn('loopguard envelope save', error)
       }
-      if (decision) {
-        const incident = decision.incident
-        if (isRecordable(decision)) {
-          try {
-            await project.appendLoop(incident, config.maxMetricsBytes)
-          } catch (error) {
-            this.logWarn('loop incident write', error)
-          }
-          rows.push({
-            ...base,
-            kind: 'loop',
-            loop: {
-              kind: incident.kind,
-              intervention: incident.intervention,
-              judge: incident.judge,
-              confidence: incident.confidence,
-            },
-          })
+      const applied = this.appliedIncidents.get(session.sessionId) ?? []
+      if (applied.length) this.appliedIncidents.delete(session.sessionId)
+      for (const incident of applied) {
+        try {
+          await project.appendLoop(incident, config.maxMetricsBytes)
+        } catch (error) {
+          this.logWarn('loop incident write', error)
         }
-        if (config.mode === 'active' && decision.apply && decision.nudge) {
-          const applied = this.options.applyRedirect?.(session.sessionId, decision.nudge) ?? false
-          if (applied) this.logger.info?.(`token-economizer: loop redirect delivered for ${session.sessionId}`)
-        }
+        rows.push({
+          ...base,
+          kind: 'loop',
+          loop: {
+            kind: incident.kind,
+            intervention: incident.intervention,
+            judge: incident.judge,
+            confidence: incident.confidence,
+          },
+        })
+      }
+      if (this.pendingDecisions.delete(session.sessionId)) {
+        this.logger.debug?.(`token-economizer: undelivered loop verdict for ${session.sessionId}`)
       }
     }
 
@@ -639,18 +732,9 @@ export class EconomizerService implements EconomizerApi {
     // new hide waits for a later session (upstream `denylist.apply` semantics).
   }
 
-  private async safeDecide(guard: LoopGuardEngine): Promise<LoopDecision | null> {
-    try {
-      return await guard.decide()
-    } catch (error) {
-      this.logWarn('loop guard decision', error)
-      return null
-    }
-  }
-
   private canJudge(sessionId: string): boolean {
     const config = this.config()
-    if (config.mode !== 'active' || !config.loopguardJudge || !this.options.judge) return false
+    if (config.mode !== 'active' || !config.loopguardIntervene || !config.loopguardJudge || !this.options.judge) return false
     if (config.maxOverheadTokensPerTurn <= 0 || config.maxOverheadTokensPerSession <= 0) return false
     const turn = this.judgeTurnUsage.get(sessionId) ?? emptyUsage()
     const session = this.judgeUsage.get(sessionId) ?? emptyUsage()
@@ -1388,12 +1472,6 @@ export class EconomizerService implements EconomizerApi {
       return 0
     }
   }
-}
-
-function isRecordable(decision: LoopDecision): boolean {
-  if (decision.action === 'redirect') return true
-  if (decision.judge !== 'not-run') return true
-  return decision.reason.startsWith('cum-backstop') || decision.reason.startsWith('envelope')
 }
 
 function isSensitiveText(text: string): boolean {

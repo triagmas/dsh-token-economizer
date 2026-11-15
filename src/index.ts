@@ -63,6 +63,8 @@ interface AgentLike {
   ctx: { tools: { definitions(scope?: unknown): readonly { name?: unknown }[]; restrict(filter: { deny: string[] }): () => void } }
   model?: { current?(): { provider?: string; model?: string } | undefined }
   followup?(message: unknown): void
+  /** Public DSH Agent API: enqueue input for the next step of the running turn. */
+  steer?(message: unknown): void
   status?: string
 }
 
@@ -189,14 +191,24 @@ export async function apply(ctx: ServicesLike, config: AnyRecord = {}): Promise<
     judge,
     applyRedirect: (sessionId, text) => {
       const binding = bySession.get(sessionId)
-      if (!binding?.agent.followup) return false
-      if (binding.agent.status === 'disposed') return false
+      if (!binding) return { ok: false, delivery: 'failed' as const }
+      if (binding.agent.status === 'disposed') return { ok: false, delivery: 'failed' as const }
+      const message = redirectMessage(text)
+      if (typeof binding.agent.steer === 'function') {
+        try {
+          binding.agent.steer(message)
+          return { ok: true, delivery: 'steer' as const }
+        } catch (error) {
+          warn(logger, `steer delivery failed, falling back to followup: ${error instanceof Error ? error.message : String(error)}`)
+        }
+      }
+      if (!binding.agent.followup) return { ok: false, delivery: 'failed' as const }
       try {
-        binding.agent.followup(redirectMessage(text))
-        return true
+        binding.agent.followup(message)
+        return { ok: true, delivery: 'followup-degraded' as const }
       } catch (error) {
         warn(logger, `could not deliver a loop redirect: ${error instanceof Error ? error.message : String(error)}`)
-        return false
+        return { ok: false, delivery: 'failed' as const }
       }
     },
     onToolsChanged: (root) => scheduleReconcile(root),

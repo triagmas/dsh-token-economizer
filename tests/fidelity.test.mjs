@@ -157,12 +157,12 @@ test('T-a loop guard delivers a redirect before onTurnEnd', async () => {
     const session = observed('session-1')
     env.service.observe(session)
     env.service.beginTurn(session, 6)
-    for (const entry of failingBatch(22)) env.service.onToolResult(session, entry)
+    for (const entry of failingBatch(22)) env.service.onToolResult(session, { ...entry, turn: 6 })
 
     // The judge is detached; drain it, then the next tool result picks up the verdict,
     // exactly like upstream's held PostToolUse decision.
     await env.service.flush()
-    env.service.onToolResult(session, failingBatch(1)[0])
+    env.service.onToolResult(session, { ...failingBatch(1)[0], turn: 6 })
     assert.ok(
       await waitFor(() => env.redirects.length > 0, 1000),
       'a redirect must exist before the turn ends',
@@ -175,7 +175,7 @@ test('T-a loop guard delivers a redirect before onTurnEnd', async () => {
       turn: 6,
       startedAt: AT,
       endedAt: '2026-01-01T00:06:00.000Z',
-      calls: failingBatch(23),
+      calls: failingBatch(23).map((entry) => ({ ...entry, turn: 6 })),
       modelCalls: [],
       usage: { inputTokens: 0, outputTokens: 0 },
       failedToolCalls: 23,
@@ -183,6 +183,7 @@ test('T-a loop guard delivers a redirect before onTurnEnd', async () => {
       partial: false,
     })
     assert.equal(env.redirects.length, 1, 'no second redirect after the turn ends')
+    await env.service.flush()
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }
@@ -315,7 +316,7 @@ test('T-f subagent loop guard makes no redirect and no judge call', async () => 
     const session = observed('child-1', extra)
     env.service.observe(session)
     env.service.beginTurn(session, 6)
-    for (const entry of failingBatch(22)) env.service.onToolResult(session, entry)
+    for (const entry of failingBatch(22)) env.service.onToolResult(session, { ...entry, turn: 6 })
     await env.service.flush()
     env.service.onToolResult(session, failingBatch(1)[0])
     await finishOnly(env.service, session, 6, failingBatch(23))
@@ -334,7 +335,7 @@ test('T-g loopguardIntervene=false never calls the judge', async () => {
     const session = observed('session-1')
     env.service.observe(session)
     env.service.beginTurn(session, 6)
-    for (const entry of failingBatch(22)) env.service.onToolResult(session, entry)
+    for (const entry of failingBatch(22)) env.service.onToolResult(session, { ...entry, turn: 6 })
     await env.service.flush()
     await finishOnly(env.service, session, 6, failingBatch(22))
     assert.equal(env.judgeCalls.length, 0, 'redirects are off, so the paid judge is off too')
