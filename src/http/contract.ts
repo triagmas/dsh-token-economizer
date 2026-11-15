@@ -122,7 +122,15 @@ export interface WireTool {
   lastAvailableAt: string | null
   status: WireToolStatus
   reason: string
-  evidence: { sessions: number; calls: number; sessionsRequired: number; callsRequired: number }
+  evidence: {
+    sessions: number
+    prompts: number
+    calls: number
+    sessionsRequired: number
+    promptsRequired: number
+    callsRequired: number
+    sessionsShortcut: number
+  }
 }
 
 export interface WireTools {

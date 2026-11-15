@@ -172,6 +172,8 @@ export interface ToolStat {
   sessionsAvailable: number
   /** Available sessions in which it was never called — upstream "loaded but unused". */
   unusedSessions: number
+  /** Completed turns in which it was available but never called (upstream `prompt_streaks`). */
+  unusedPrompts: number
   lastUsedAt: string | null
   lastUsedSeq: number | null
   pruned: boolean

@@ -87,15 +87,22 @@ export const Config = z.object({
     .min(1)
     .max(100)
     .step(1)
-    .default(3)
-    .description('Tasks a tool must be available but unused before it becomes a pruning candidate.')
+    .default(10)
+    .description('Prompts a tool must be available but unused before it becomes a pruning candidate.')
     .volatile(),
   toolpruneMinSessions: z.number()
     .min(1)
     .max(100)
     .step(1)
-    .default(3)
-    .description('Minimum observed sessions before any pruning decision is taken.')
+    .default(2)
+    .description('Minimum observed sessions before prompt evidence can hide a tool.')
+    .volatile(),
+  toolpruneSessions: z.number()
+    .min(1)
+    .max(100)
+    .step(1)
+    .default(5)
+    .description('Shortcut: hide an unused tool after this many sessions regardless of prompts.')
     .volatile(),
   toolpruneReauditEvery: z.number()
     .min(0)
@@ -226,6 +233,7 @@ export interface ResolvedConfig {
   toolpruneMode: 'disabled' | 'observe' | 'propose' | 'automatic'
   toolpruneEvidence: number
   toolpruneMinSessions: number
+  toolpruneSessions: number
   toolpruneReauditEvery: number
   toolpruneAllowlist: string[]
   loopguardEnabled: boolean
@@ -259,8 +267,9 @@ export const CONFIG_DEFAULTS: ResolvedConfig = {
   microskillsRetireDays: 90,
   toolpruneEnabled: true,
   toolpruneMode: 'observe',
-  toolpruneEvidence: 3,
-  toolpruneMinSessions: 3,
+  toolpruneEvidence: 10,
+  toolpruneMinSessions: 2,
+  toolpruneSessions: 5,
   toolpruneReauditEvery: 25,
   toolpruneAllowlist: [],
   loopguardEnabled: true,
@@ -342,6 +351,7 @@ export function resolveConfig(raw: Record<string, unknown> | undefined | null): 
     ),
     toolpruneEvidence: num(source.toolpruneEvidence, CONFIG_DEFAULTS.toolpruneEvidence, 1, 100),
     toolpruneMinSessions: num(source.toolpruneMinSessions, CONFIG_DEFAULTS.toolpruneMinSessions, 1, 100),
+    toolpruneSessions: num(source.toolpruneSessions, CONFIG_DEFAULTS.toolpruneSessions, 1, 100),
     toolpruneReauditEvery: num(source.toolpruneReauditEvery, CONFIG_DEFAULTS.toolpruneReauditEvery, 0, 1000),
     toolpruneAllowlist: Array.isArray(allowlist)
       ? allowlist.filter((item): item is string => typeof item === 'string' && item.trim() !== '').map((item) => item.trim())

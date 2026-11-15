@@ -43,6 +43,8 @@ export interface ToolRow extends ToolStat {
   observedSession?: string
   /** Last session id that recorded a call, for distinct-session counting. */
   lastCallSession?: string
+  /** Task index that last counted a prompt for this row (idempotence). */
+  unusedAtTask?: number
 }
 
 /** One tool in an observed catalog: a bare name or a name plus its description size. */
@@ -102,6 +104,7 @@ export function newToolStat(name: string, options: NewToolStatOptions = {}): Too
     sessions: 0,
     sessionsAvailable: 0,
     unusedSessions: 0,
+    unusedPrompts: 0,
     lastUsedAt: null,
     lastUsedSeq: null,
     pruned: false,
@@ -228,6 +231,38 @@ function toIso(value: number | string | Date | null | undefined): string | null 
 }
 
 /**
+ * Count one completed turn (prompt) for every available tool that has never been called.
+ * Upstream `fold.py` adds the session's prompt count to `prompt_streaks` only when the
+ * tool's unused streak advanced; DSH turns are the prompt unit here. `taskIndex` keeps a
+ * repeated finish callback for one turn from counting twice.
+ *
+ * The argument is the catalog observed for the turn. A tool that disappeared is ignored;
+ * a tool that was called in this turn already had `unusedPrompts` reset by
+ * `recordToolCall`. Returns the number of rows advanced.
+ */
+export function recordUnusedPrompts(
+  file: ToolsFile,
+  names: readonly ToolAvailability[],
+  taskIndex: number,
+): number {
+  const task = isFiniteNumber(taskIndex) && taskIndex >= 0 ? taskIndex : 0
+  let advanced = 0
+  const seen = new Set<string>()
+  for (const entry of names ?? []) {
+    const descriptor = toDescriptor(entry)
+    if (!descriptor || seen.has(descriptor.name)) continue
+    seen.add(descriptor.name)
+    const stat = file.tools[descriptor.name] as ToolRow | undefined
+    if (!stat || isToolInactive(stat) || stat.calls > 0) continue
+    if (stat.unusedAtTask === task) continue
+    stat.unusedAtTask = task
+    stat.unusedPrompts = nonNegative(stat.unusedPrompts) + 1
+    advanced += 1
+  }
+  return advanced
+}
+
+/**
  * Record one observed tool call (success or failure).
  *
  * Upstream `ToolingStage.after_task` folds the task's used-tool names into `used_tools`
@@ -271,6 +306,8 @@ export function recordToolCall(
   // Upstream `after_task` resets a loaded-but-unused streak as soon as the tool is used;
   // a used row therefore reports zero unused sessions (and is protected anyway).
   stat.unusedSessions = 0
+  // Upstream resets `prompt_streaks[t] = 0` as soon as the tool is used, even once.
+  stat.unusedPrompts = 0
 
   const iso = toIso(timestamp)
   if (iso) stat.lastUsedAt = iso

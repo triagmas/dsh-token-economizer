@@ -34,6 +34,7 @@ import {
   evaluateCandidate,
   observeToolAvailability,
   observedSessions,
+  recordUnusedPrompts,
   recordToolCall,
   restoreTool,
   reauditDue,
@@ -382,6 +383,13 @@ export class EconomizerService implements EconomizerApi {
     summary.calls.forEach((call, index) => {
       recordToolCall(toolsFile, call.name, !call.isError, index, call.at, session.sessionId)
     })
+    if (!session.isSubagent) {
+      recordUnusedPrompts(
+        toolsFile,
+        session.availableTools.map((tool) => ({ name: tool.name, descriptionTokens: tool.descriptionTokens })),
+        taskIndex,
+      )
+    }
     await project.saveTools(toolsFile)
 
     // --- micro-skills -------------------------------------------------------
@@ -956,9 +964,12 @@ export class EconomizerService implements EconomizerApi {
           reason: decision.candidate ? 'candidate' : decision.reason,
           evidence: {
             sessions: row.sessionsAvailable,
+            prompts: row.unusedPrompts ?? 0,
             calls: row.calls,
             sessionsRequired: config.toolpruneMinSessions,
+            promptsRequired: config.toolpruneEvidence,
             callsRequired: config.toolpruneEvidence,
+            sessionsShortcut: config.toolpruneSessions,
           },
         })
       }

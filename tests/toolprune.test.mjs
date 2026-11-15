@@ -25,6 +25,7 @@ import {
   proposedCandidates,
   reauditDue,
   recordToolCall,
+  recordUnusedPrompts,
   restoreTool,
   snapshot,
   unmarkPruned,
@@ -43,6 +44,7 @@ function config(overrides = {}) {
     toolpruneMode: 'observe',
     toolpruneEvidence: 3,
     toolpruneMinSessions: 3,
+    toolpruneSessions: 5,
     toolpruneReauditEvery: 25,
     toolpruneAllowlist: [],
     ...overrides,
@@ -62,6 +64,7 @@ test('newToolStat creates a pristine, project-scoped row with a token estimate',
   assert.equal(stat.calls, 0)
   assert.equal(stat.sessionsAvailable, 0)
   assert.equal(stat.unusedSessions, 0)
+  assert.equal(stat.unusedPrompts, 0)
   assert.equal(stat.lastUsedAt, null)
   assert.equal(stat.lastUsedSeq, null)
   assert.equal(stat.pruned, false)
@@ -91,6 +94,22 @@ test('observeToolAvailability folds sessions, registers unknown tools, and is id
   assert.equal(file.tools.glob.unusedSessions, 3)
   assert.equal(file.tools.glob.sessionsAvailable, 3)
   assert.equal(observedSessions(file), 3)
+})
+
+test('recordUnusedPrompts counts turns, resets on first use and is idempotent per task', () => {
+  const file = emptyTools()
+  const names = ['read', 'glob', 'rare_tool']
+  observeToolAvailability(file, 0, names)
+  assert.equal(recordUnusedPrompts(file, names, 0), 3, 'every never-called available tool advances')
+  assert.equal(file.tools.rare_tool.unusedPrompts, 1)
+  assert.equal(recordUnusedPrompts(file, names, 0), 0, 'the same task is not counted twice')
+  assert.equal(recordUnusedPrompts(file, names, 1), 3)
+  assert.equal(file.tools.rare_tool.unusedPrompts, 2)
+
+  recordToolCall(file, 'rare_tool', true, 1, null)
+  assert.equal(file.tools.rare_tool.unusedPrompts, 0, 'the first call clears the prompt streak')
+  assert.equal(recordUnusedPrompts(file, names, 2), 2, 'the two never-called tools still advance')
+  assert.equal(file.tools.rare_tool.unusedPrompts, 0, 'a used tool never accrues prompt evidence')
 })
 
 test('recordToolCall tracks successes/failures, last use and distinct sessions', () => {

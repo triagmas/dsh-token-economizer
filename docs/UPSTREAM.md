@@ -31,6 +31,22 @@ the pinned upstream Python modules.
 | `tokeneconomizer/loopguard/envelope.py` | `src/loopguard/envelope.ts` | Envelope/cost tracker |
 | `tokeneconomizer/pricing.py` | `src/pricing/weights.ts` | Cache-aware model weights (no USD prices upstream) |
 
+## Tool-pruning evidence and high-risk tools
+
+The plugin-layer original (`tokeneconomizer/plugin/fold.py::enough_evidence`) decides
+`(sessions >= toolprune_min_sessions and prompts >= toolprune_evidence) or sessions >=
+toolprune_sessions`. `prompt_streaks` counts the prompts of every session in which a
+never-used tool was available. This port counts one prompt per completed DSH turn in
+`unusedPrompts`, keeps `unusedSessions` for the session floor, and implements the same
+predicate in `src/toolprune/policy.ts::enoughEvidence`.
+
+The original multiplies both thresholds by `live_adapter.HIGH_RISK_FACTOR` for a
+host-declared high-risk capability class. DSH has no equivalent capability manifest, so
+the multiplier is **not ported**: every tool is evaluated as normal-risk. This is
+conservative for hiding (a high-risk tool needs more evidence upstream, so this port may
+hide it earlier), but it cannot remove the work surface, controls, or a tool that was ever
+called. Recorded here as a deliberate gap, not an equivalence.
+
 ## Deliberate deviations
 
 1. **No Python runtime.** Upstream is a Python library with provider adapters;

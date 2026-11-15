@@ -22,15 +22,18 @@
  * caller has also confirmed the global ACTIVE mode (see `ResolvedConfig.mode`).
  * `toolpruneEnabled === false` overrides every mode.
  *
- * DEVIATION from upstream (documented): upstream tracks a per-task unused streak and
- * the catalog size implicitly. The shared `ToolStat` row (which other owners read)
- * cannot add state, so this port equates the evidence threshold with
- * `unusedSessions` (available sessions in which the tool was never called) and
- * estimates the number of sessions the catalog has been observed from the largest
- * `sessionsAvailable` among still-registered tools. For the ordinary case — a stable
- * catalog observed once per session — this is identical to upstream's streak.
- * Upstream's permanent "ever used" protection is preserved exactly (`calls > 0`), so
- * the streak is only ever consulted for tools that were never called.
+ * Evidence is upstream's `fold.py::enough_evidence`: a never-used tool is left out
+ * after `toolpruneEvidence` prompts spread over at least `toolpruneMinSessions`
+ * sessions, or after `toolpruneSessions` sessions however short. `unusedSessions`
+ * counts available sessions; `unusedPrompts` counts completed turns. The upstream
+ * high-risk multiplier is deliberately not ported (DSH has no equivalent capability
+ * class), and is recorded in `docs/UPSTREAM.md`.
+ *
+ * DEVIATION from upstream (documented): upstream tracks per-task streaks and the
+ * catalog size implicitly. This port estimates the catalog observation count from the
+ * largest `sessionsAvailable` among still-registered tools. Upstream's permanent "ever
+ * used" protection is preserved exactly (`calls > 0`), so the streak is only ever
+ * consulted for tools that were never called.
  */
 import type { ResolvedConfig } from '../config/schema.js'
 import type { ToolStat } from '../core/types.js'
@@ -258,6 +261,46 @@ export function hasEverBeenUsed(stat: ToolStat): boolean {
   return stat.calls > 0 || stat.successes > 0
 }
 
+/** The two counters upstream compares in `fold.py::enough_evidence`. */
+export interface EvidenceCounts {
+  sessions: number
+  prompts: number
+}
+
+/** The evidence knobs `enough_evidence` needs (structural, so tests can pass a literal). */
+export interface EvidenceSettings {
+  toolpruneEvidence: number
+  toolpruneMinSessions: number
+  toolpruneSessions: number
+}
+
+/**
+ * Upstream `plugin/fold.py::enough_evidence`:
+ * `(sessions >= min_sessions and prompts >= evidence) or sessions >= sessions_shortcut`.
+ *
+ * The high-risk multiplier (`HIGH_RISK_FACTOR`) is intentionally absent: DSH has no
+ * ported high-risk capability class. Non-finite counters are treated as zero.
+ */
+export function enoughEvidence(counts: EvidenceCounts, config: EvidenceSettings): boolean {
+  const sessions = isFiniteNumber(counts?.sessions) && counts.sessions > 0 ? Math.floor(counts.sessions) : 0
+  const prompts = isFiniteNumber(counts?.prompts) && counts.prompts > 0 ? Math.floor(counts.prompts) : 0
+  const minSessions = isFiniteNumber(config?.toolpruneMinSessions) ? config.toolpruneMinSessions : 0
+  const evidence = isFiniteNumber(config?.toolpruneEvidence) ? config.toolpruneEvidence : Number.POSITIVE_INFINITY
+  const shortcut = isFiniteNumber(config?.toolpruneSessions) ? config.toolpruneSessions : Number.POSITIVE_INFINITY
+  return (sessions >= minSessions && prompts >= evidence) || sessions >= shortcut
+}
+
+/**
+ * Prompt evidence for a row. Old rows written before `unusedPrompts` existed fall back
+ * to one prompt per unused session, matching upstream's `prompt_streaks or streaks`
+ * migration for sessions recorded before prompts were counted.
+ */
+export function unusedPromptsFor(stat: ToolStat): number {
+  const prompts = (stat as PolicyToolRow).unusedPrompts
+  if (isFiniteNumber(prompts) && prompts >= 0) return Math.max(prompts, stat.unusedSessions ?? 0)
+  return isFiniteNumber(stat.unusedSessions) ? stat.unusedSessions : 0
+}
+
 /** Build the catalog facts one audit needs. */
 export function snapshot(file: ToolsFile, context: PruneContext = {}): PruneSnapshot {
   const catalog = activeToolRows(file)
@@ -306,7 +349,8 @@ export function evaluateCandidate(
   if (!isFiniteNumber(facts.observedSessions) || facts.observedSessions < config.toolpruneMinSessions) {
     return { candidate: false, reason: 'insufficient-sessions' }
   }
-  if (!isFiniteNumber(stat.unusedSessions) || stat.unusedSessions < config.toolpruneEvidence) {
+  const sessions = isFiniteNumber(stat.unusedSessions) ? stat.unusedSessions : 0
+  if (!enoughEvidence({ sessions, prompts: unusedPromptsFor(stat) }, config)) {
     return { candidate: false, reason: 'insufficient-evidence' }
   }
   return { candidate: true, reason: 'candidate' }
@@ -441,6 +485,7 @@ export function restoreTool(file: ToolsFile, name: string): boolean {
   if (!stat) return false
   unmarkPruned(file, tool)
   stat.unusedSessions = 0
+  stat.unusedPrompts = 0
   ;(stat as PolicyToolRow).restored = true
   return true
 }

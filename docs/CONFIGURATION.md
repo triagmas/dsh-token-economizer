@@ -28,8 +28,9 @@ page, `/economizer config set <key>=<value>`, or the plugin's Settings tab.
 | --- | --- | --- | --- |
 | `toolpruneEnabled` | `true` | boolean | Track tool usage per project. |
 | `toolpruneMode` | `observe` | `disabled`, `observe`, `propose`, `automatic` | `observe` records only; `propose` reports candidates; `automatic` hides eligible tools (ACTIVE only). |
-| `toolpruneEvidence` | `3` | 1–100 | Tasks where a tool was available but unused before it qualifies. |
-| `toolpruneMinSessions` | `3` | 1–100 | Minimum observed sessions before any decision. |
+| `toolpruneEvidence` | `10` | 1–100 | Prompts (completed turns) where a tool was available but unused before it qualifies. |
+| `toolpruneMinSessions` | `2` | 1–100 | Minimum observed sessions the prompt evidence must be spread over. |
+| `toolpruneSessions` | `5` | 1–100 | Sessions shortcut: hide an unused tool even when its prompt count is lower. |
 | `toolpruneReauditEvery` | `25` | 0–1000 | Re-read the catalog every N tasks; `0` disables periodic re-audit. |
 | `toolpruneAllowlist` | `[]` | string[] | Tool names that are never hidden. |
 
