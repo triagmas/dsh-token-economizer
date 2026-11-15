@@ -7,7 +7,7 @@
  *
  *  - micro-skills  -> one dynamic prompt context (attributed, read-only text)
  *  - tool pruning  -> `agent.ctx.tools.restrict({ deny })` with an exact disposer
- *  - loop guard    -> an extra user-role turn carrying a bounded redirect
+ *  - loop guard    -> one bounded steer inside the current turn (followup fallback)
  *  - memory        -> JSON files under `$DSH_HOME/token-economizer/`
  *
  * Failure policy: every callback is fail-open. A thrown plugin error must never
@@ -214,7 +214,8 @@ export async function apply(ctx: ServicesLike, config: AnyRecord = {}): Promise<
             info(logger, 'token-economizer: redirect followup accepted')
             resolve({ ok: true, delivery: 'followup-degraded' })
           } catch (error) {
-            warn(logger, `steer failed for a loop redirect: ${error instanceof Error ? error.message : String(error)}`)
+            const primary = useSteer ? 'steer' : 'followup'
+            warn(logger, `loop redirect ${primary} failed: ${error instanceof Error ? error.message : String(error)}`)
             if (useSteer && useFollowup) {
               try {
                 binding.agent.followup?.(message)

@@ -720,11 +720,11 @@ export class EconomizerService implements EconomizerApi {
         this.logWarn('loopguard envelope save', error)
       }
       // A deferred steer/followup settles on the next macrotask. Do not write a stale
-    // delivery mode (or drop a failed attempt) just because the turn ended first.
-    while (this.redirectDeliveries.size > 0) {
-      await Promise.allSettled([...this.redirectDeliveries])
-    }
-    const applied = this.appliedIncidents.get(session.sessionId) ?? []
+      // delivery mode (or drop a failed attempt) just because the turn ended first.
+      while (this.redirectDeliveries.size > 0) {
+        await Promise.allSettled([...this.redirectDeliveries])
+      }
+      const applied = this.appliedIncidents.get(session.sessionId) ?? []
       if (applied.length) this.appliedIncidents.delete(session.sessionId)
       for (const incident of applied) {
         try {
