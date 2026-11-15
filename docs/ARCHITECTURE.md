@@ -54,13 +54,18 @@ Python runtime is required; the upstream repository is vendored under
   tool is one `restrict()` call; a restore is durable in the project row and can
   be made from the UI or `/economizer tools restore`. Orchestration/optional
   tools are eligible; the file/shell/analysis surface and human controls are not.
+  `toolpruneAllowlist` matches exact names or `*`/`**`/`?` patterns. A new
+  automatic hide is held while the repository is active and applies in a later
+  quiet session (default 60 minutes), or after 24 hours, so a live session keeps
+  its cache and tool surface.
 * **Loop guard** — repeated-failure and stagnation detection using upstream
   thresholds. Edits through Bash (`sed -i`, redirects, inline Python, patches)
   count as edits, so an agent that never calls an edit tool is not scored as
-  untouched. At most one redirect per turn, a judge confidence floor of `0.7`,
-  no self-stop, no recursive judging, session/turn token budgets, fail-open. A
-  confident *stuck* verdict lets the model write the redirect; every fallback
-  uses the deterministic template.
+  untouched. At most one redirect per turn, delivered inside the tool result
+  (next step) rather than after the turn, a judge confidence floor of `0.7`, no
+  self-stop, no recursive judging, no judging of subagents, session/turn token
+  budgets, fail-open. A confident *stuck* verdict lets the model write the
+  redirect; every fallback uses the deterministic template.
 
 ### 3. Persistence (`src/storage/`, `src/core/`)
 
@@ -144,3 +149,20 @@ The economizer is an optimization, never a dependency:
   text, not from an assumed percentage.
 * Subagent usage is attributed to the root session once. Sessions whose events
   the plugin never observed are reported as unattributed.
+
+## Distribution and the bundle patch
+
+`package.json#dsh.bundle.patch` points at `cordis.patch.yml`. DSH applies that
+file when the package is installed into a profile: the `insert` list adds one
+host plugin entry, `token-economizer`, with an empty config object. This is a
+bundle manifest, not a code patch — it edits the profile's plugin table through
+the supported installer, never the Harness checkout or another plugin. The
+plugin's own defaults then apply; user settings are stored in the profile's
+config, not in the YAML. Uninstall removes the inserted entry, so the change is
+reversible.
+
+`lib/` is the compiled host half (`tsc`); `client/index.js` is plain JavaScript
+loaded by the Harness module loader and has no separate build. Because both are
+committed for no-build installs, `npm run check:dist` compiles `src/` into a
+temporary directory and compares every emitted `.js` with `lib/`, then
+syntax-checks the client and verifies the two package pointers above.

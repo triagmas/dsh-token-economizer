@@ -40,7 +40,8 @@
     "NOTICE",
     "docs/**/*.md",
     "tests/**/*.mjs",
-    "benchmark/**/*"
+    "benchmark/**/*",
+    "CHANGELOG.md"
   ],
   "dsh": {
     "bundle": {
@@ -64,7 +65,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --test tests/*.test.mjs",
     "smoke": "node tests/smoke.mjs",
-    "benchmark": "node benchmark/run.mjs"
+    "benchmark": "node benchmark/run.mjs",
+    "check:dist": "node scripts/check-dist.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

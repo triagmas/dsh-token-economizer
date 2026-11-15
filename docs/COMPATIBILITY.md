@@ -33,8 +33,8 @@ loading.
 | Prompt context | `systemPrompt.context({name, order, text})` | knowledge block | injection disabled, warning logged |
 | Tool catalog | `ctx.tools.definitions(scope?)` | pruning statistics | pruning disabled, warning logged |
 | Tool restriction | `agent.ctx.tools.restrict({deny})` | hide tools | pruning disabled, warning logged |
-| Agent injection | `agent.inject(message)` | loop redirect | no redirects, guard still reports |
-| LLM | `ctx.llm.stream(options)` | judge | judge disabled, guard uses rules only |
+| Loop redirect | `agent.steer(message)`, else `agent.followup(message)` marked `followup-degraded` | one in-turn redirect | no redirects, guard still measures |
+| LLM | `ctx.llm.stream(options)` | judge only in ACTIVE with `loopguardEnabled` + `loopguardIntervene` + `loopguardJudge` and budget | judge disabled, guard uses deterministic rules only |
 | Config | `ctx.get('configEditor').edit(entry, fn)` | persist settings | settings read-only; `/economizer config set` fails |
 
 Every optional capability is feature-detected at runtime. The plugin never
@@ -65,8 +65,8 @@ installation.
 ## Verification evidence (this checkout)
 
 ```text
-node --test tests/*.test.mjs       204 tests, 204 pass, 0 fail
-node --test tests/parity/*.test.mjs 40 tests,  40 pass, 0 fail
+node --test tests/*.test.mjs       217 tests, 217 pass, 0 fail
+node --test tests/parity/*.test.mjs 43 tests,  43 pass, 0 fail
 node tests/smoke.mjs               PASS (host entry, fake Context)
 node benchmark/run.mjs             deterministic, offline, PASS
 test_drive (isolated DSH_HOME)     install/config/uninstall PASS; boot smoke skipped

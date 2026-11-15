@@ -56,6 +56,12 @@ npm run build
 dsh plugin --profile web add file:/absolute/path/to/dsh-token-economizer
 ```
 
+`cordis.patch.yml` is the bundle patch DSH reads through
+`package.json#dsh.bundle.patch`. It inserts one host plugin entry
+(`token-economizer`, empty config) into the selected profile; it does not patch
+DSH core, another plugin, or the workspace. Removing the package removes that
+insert, which is why uninstall is reversible.
+
 From GitHub (the compiled `lib/` and `client/` are committed, so no build step
 is needed):
 
@@ -145,13 +151,14 @@ npm run build
 npm test                 # unit + integration suites
 node tests/smoke.mjs     # host-entry smoke against a fake Context
 npm run benchmark        # deterministic mechanism benchmark
+npm run check:dist       # committed lib/ matches a fresh build; client parses
 ```
 
 Last recorded results in this checkout:
 
 ```text
-unit/integration: 204 tests, 204 pass, 0 fail
-parity (pinned Python upstream): 40 tests, 40 pass, 0 fail
+unit/integration: 217 tests, 217 pass, 0 fail
+parity (pinned Python upstream): 43 tests, 43 pass, 0 fail
 smoke: PASS
 install smoke (isolated DSH_HOME): local and GitHub install/patch/uninstall PASS; headless boot skipped in the last drives
 ```

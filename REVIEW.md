@@ -36,19 +36,22 @@ Ported and covered by tests:
 
 * deterministic micro-skills lifecycle, env-facts, redaction, profile rendering,
   injection block and retirement;
-* evidence-based tool pruning, protected work/safety surface, persistence,
-  durable restore, periodic re-audit;
+* evidence-based tool pruning with upstream prompt/sessions evidence, protected
+  work/safety surface, name/glob allowlist, quiet pending hides, durable
+  restore, periodic re-audit;
 * loop-guard rules, spiral detection, shell-edit detection, judge prompts,
-  bounded redirect, confidence gate, persisted envelope;
+  in-turn bounded redirect (`steer`, visible `followup` fallback), confidence
+  gate, persisted envelope, no subagent judging;
 * local pricing/metrics views and the DSH-native adapter/UI.
 
 Deliberately not ported, or still incomplete:
 
 * automatic paid micro-skills proposer (prompts and parsing exist, no model call);
-* LLM tool-pruning judge and glob protection patterns;
+* LLM tool-pruning judge (glob protection patterns are now ported);
 * loop-guard `stop` mode and a separate notice channel (DSH exposes
   `followup`/`steer`, not an upstream-style notice API);
 * per-threshold pinning;
+* the upstream paid proposer and judge are opt-in and never called by default;
 * upstream product surface: repository map, history import, `repos`, `doctor`,
   `probe`, `fold`, Codex capability controller, provider adapters.
 
