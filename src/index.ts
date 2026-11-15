@@ -64,6 +64,7 @@ interface AgentLike {
   ctx: { tools: { definitions(scope?: unknown): readonly { name?: unknown }[]; restrict(filter: { deny: string[] }): () => void } }
   model?: { current?(): { provider?: string; model?: string } | undefined }
   followup?(message: unknown): void
+  steer?(message: unknown): void
   status?: string
 }
 
@@ -193,21 +194,38 @@ export async function apply(ctx: ServicesLike, config: AnyRecord = {}): Promise<
       if (!binding) return { ok: false, delivery: 'failed' as const }
       if (binding.agent.status === 'disposed') return { ok: false, delivery: 'failed' as const }
       const message = redirectMessage(text)
-      // DSH exposes `agent.steer`, but this port does not call it. `followup` queues
-      // the redirect after the current turn, so the guard decision is in-turn but the
-      // delivery is not.
-      if (!binding.agent.followup) return { ok: false, delivery: 'failed' as const }
+      const useSteer = typeof binding.agent.steer === 'function'
+      const useFollowup = typeof binding.agent.followup === 'function'
+      if (!useSteer && !useFollowup) return { ok: false, delivery: 'failed' as const }
       // The guard runs while the host is publishing the tool-result append; calling
-      // followup synchronously re-enters that publication and DSH rejects it. Defer one
-      // macrotask so the append is complete, and report the queue as delivered.
+      // steer or followup synchronously re-enters that publication and DSH rejects it.
+      // Defer one macrotask so the append is complete. `steer` targets the next step,
+      // so the redirect stays inside the current turn; `followup` is the fallback for
+      // hosts without it and for a rejected steer.
       setImmediate(() => {
         try {
+          if (useSteer) {
+            binding.agent.steer?.(message)
+            info(logger, 'token-economizer: redirect steer accepted')
+            return
+          }
           binding.agent.followup?.(message)
+          info(logger, 'token-economizer: redirect followup accepted')
         } catch (error) {
-          warn(logger, `could not deliver a loop redirect: ${error instanceof Error ? error.message : String(error)}`)
+          warn(logger, `steer failed for a loop redirect: ${error instanceof Error ? error.message : String(error)}`)
+          if (!useSteer || !useFollowup) return
+          try {
+            binding.agent.followup?.(message)
+            info(logger, 'token-economizer: redirect followup accepted after steer failed')
+          } catch (fallbackError) {
+            warn(
+              logger,
+              `could not deliver a loop redirect: ${fallbackError instanceof Error ? fallbackError.message : String(fallbackError)}`,
+            )
+          }
         }
       })
-      return { ok: true, delivery: 'followup-degraded' as const }
+      return { ok: true, delivery: useSteer ? ('steer' as const) : ('followup-degraded' as const) }
     },
     onToolsChanged: (root) => scheduleReconcile(root),
     revision: null,

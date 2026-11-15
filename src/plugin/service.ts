@@ -82,7 +82,7 @@ import type {
 
 export type RedirectDelivery =
   | boolean
-  | { ok: boolean; delivery?: 'followup-degraded' | 'failed' }
+  | { ok: boolean; delivery?: 'steer' | 'followup-degraded' | 'failed' }
 
 export interface Logger {
   info?(message: string): void
