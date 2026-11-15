@@ -38,6 +38,8 @@ export interface SkillsFile {
   schemaVersion: number
   taskIndex: number
   facts: StoredFact[]
+  /** Task (= finished session) index assigned to each session, so turns share one task. */
+  sessionTasks?: Record<string, number>
   updatedAt: string | null
   /** Last block rendered by the engine, persisted so a restart can inject immediately. */
   lastBlock?: string
@@ -68,6 +70,7 @@ export const EMPTY_SKILLS: SkillsFile = {
   schemaVersion: SCHEMA_VERSION,
   taskIndex: 0,
   facts: [],
+  sessionTasks: {},
   updatedAt: null,
   lastBlock: '',
   lastBlockTokens: 0,
@@ -244,8 +247,20 @@ export class ProjectStore {
   }
 
   /** Increment and return the project task index (one task = one finished turn). */
-  async nextTaskIndex(): Promise<number> {
+  async nextTaskIndex(sessionId?: string): Promise<number> {
     return this.updateSkills((file) => {
+      if (sessionId) {
+        const known = file.sessionTasks?.[sessionId]
+        if (Number.isInteger(known)) return Number(known)
+        const index = file.taskIndex
+        file.taskIndex = index + 1
+        if (!file.sessionTasks) file.sessionTasks = {}
+        file.sessionTasks[sessionId] = index
+        // Bounded: a very old session id only costs a duplicate task index on a late turn.
+        const keys = Object.keys(file.sessionTasks)
+        if (keys.length > 512) delete file.sessionTasks[keys[0] as string]
+        return index
+      }
       const index = file.taskIndex
       file.taskIndex = index + 1
       return index

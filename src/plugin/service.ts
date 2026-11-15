@@ -522,7 +522,8 @@ export class EconomizerService implements EconomizerApi {
     const project = await this.store.project(root)
     const runtime = await this.projectRuntime(project, config)
     const at = summary.endedAt
-    const taskIndex = await project.nextTaskIndex()
+    // A task is a finished session, not a turn: repeated turns share the session's index.
+    const taskIndex = await project.nextTaskIndex(session.sessionId)
 
     // --- tool statistics -----------------------------------------------------
     const toolsFile = await project.loadTools()

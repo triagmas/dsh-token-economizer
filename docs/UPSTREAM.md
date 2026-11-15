@@ -47,6 +47,14 @@ conservative for hiding (a high-risk tool needs more evidence upstream, so this 
 hide it earlier), but it cannot remove the work surface, controls, or a tool that was ever
 called. Recorded here as a deliberate gap, not an equivalence.
 
+## Task means finished session
+
+Upstream folds one finished *session* as one task. This port used to advance the task index
+on every turn and to count every turn as a new confirmation. That let two turns of one
+session promote a fact and shifted recency decay. The index now belongs to the session
+(`sessionTasks` in `skills.json`), so repeated turns reuse it, and a confirmation is counted
+once per session id even if the same session is folded again.
+
 ## Deliberate deviations
 
 1. **No Python runtime.** Upstream is a Python library with provider adapters;

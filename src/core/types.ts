@@ -142,6 +142,8 @@ export interface StoredFact {
   state: FactState
   /** `[task index, edited file basenames]` confirmations (`lifecycle.py` confirms). */
   confirms: Array<[number, string[]]>
+  /** Session id per confirmation, so re-folding one session cannot vote twice. */
+  confirmSessions?: string[]
   contradicts: number[]
   fireNum: number
   fireDen: number

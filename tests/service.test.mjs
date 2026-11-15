@@ -740,17 +740,17 @@ test('a periodic re-audit shows the full catalog once without losing persisted h
     const project = await env.store.project(PROJECT)
 
     // A normal task keeps the hide.
-    await finishTurn(env.service, { turn: 2, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    await finishTurn(env.service, { sessionId: 'session-2', turn: 2, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
     assert.ok((await env.service.denySetForSession('session-1')).includes('rare_tool'))
 
     // Task index 2 is a re-audit task: no hide is applied for that one reconcile.
-    await finishTurn(env.service, { turn: 3, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    await finishTurn(env.service, { sessionId: 'session-3', turn: 3, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
     assert.deepEqual(await env.service.denySetForSession('session-1'), [])
     let toolsFile = await project.loadTools()
     assert.ok(toolsFile.pruned.includes('rare_tool'), 'the persisted hide survives the re-audit')
     assert.equal(toolsFile.lastAuditTask, 2, 'the audit cadence survives a process restart')
 
-    await finishTurn(env.service, { turn: 4, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    await finishTurn(env.service, { sessionId: 'session-4', turn: 4, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
     assert.ok((await env.service.denySetForSession('session-1')).includes('rare_tool'))
     toolsFile = await project.loadTools()
     assert.ok(toolsFile.pruned.includes('rare_tool'))

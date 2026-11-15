@@ -14,7 +14,7 @@ page, `/economizer config set <key>=<value>`, or the plugin's Settings tab.
 
 | Key | Default | Range | Meaning |
 | --- | --- | --- | --- |
-| `microskillsEnabled` | `true` | boolean | Learn project facts from finished tasks. |
+| `microskillsEnabled` | `true` | boolean | Learn project facts from finished sessions. |
 | `microskillsInject` | `false` | boolean | Send confirmed facts to the model (ACTIVE only). |
 | `microskillsProfile` | `envfacts` | `envfacts`, `distiller`, `envfacts+distiller` | `envfacts` is local and LLM-free; `distiller` uses the optional proposer (costs tokens); combined runs both. |
 | `microskillsMaxFacts` | `4` | 0–50 | Maximum facts in the injected block. |

@@ -188,7 +188,7 @@ export class MicroskillsEngine {
         if (fact) envDistiller.facts.set(fact.id, fact)
       }
       envDistiller.seedInjected(input.injectedIds)
-      envDistiller.update(digest, { resolved: null, edited })
+      envDistiller.update(digest, { resolved: null, edited, sessionId: source.sessionId })
       // Write the folded environment facts back into the rows.
       const byKey = new Map(facts.map((row, index) => [row.key, index]))
       for (const fact of envDistiller.facts.values()) {
@@ -236,7 +236,7 @@ export class MicroskillsEngine {
       if (index === -1) {
         const seedRow = emptyRow(key, text, candidate, at, source)
         const life = lifecycleFromStored(seedRow, { kPromote })
-        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files)
+        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files, source.sessionId)
         row = storedFactFromLifecycle(life, {
           id: factId(key),
           text,
@@ -253,7 +253,7 @@ export class MicroskillsEngine {
       } else {
         row = facts[index] as StoredFact
         const life = lifecycleFromStored(row, { kPromote })
-        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files)
+        life.update(now, verdict, candidate.fired, candidate.exercised, candidate.files, source.sessionId)
         applyLifecycleToStored(row, life)
         row.text = text
         row.kind = candidate.kind

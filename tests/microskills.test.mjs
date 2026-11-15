@@ -714,7 +714,7 @@ function promoteThroughEngine(key, text, options = {}) {
   let result = null
   for (let index = 0; index < (options.runs ?? 4); index += 1) {
     result = engine.run({
-      window: windowOf([], index),
+      window: windowOf([], index, { sessionId: `s-${index + 1}` }),
       facts,
       config: config({
         microskillsProfile: 'distiller',
