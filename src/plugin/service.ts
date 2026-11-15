@@ -114,7 +114,7 @@ export interface ServiceOptions {
   writeConfig?(patch: Record<string, unknown>): Promise<void>
   judge?: JudgeRunner | null
   /** Deliver a loop redirect into the agent bound to this session. */
-  applyRedirect?(sessionId: string, text: string): RedirectDelivery | boolean
+  applyRedirect?(sessionId: string, text: string): RedirectDelivery | Promise<RedirectDelivery>
   /** Ask the Host to re-reconcile tool restrictions for a project ('' = every project). */
   onToolsChanged?(projectRoot: string): void
   revision?: number | string | null
@@ -242,6 +242,8 @@ export class EconomizerService implements EconomizerApi {
   private readonly pendingDecisions = new Map<string, { decision: LoopDecision; turn: number }>()
   private readonly redirectedTurns = new Map<string, number>()
   private readonly appliedIncidents = new Map<string, LoopIncident[]>()
+  /** In-flight redirect deliveries; the turn boundary waits before writing incidents. */
+  private readonly redirectDeliveries = new Set<Promise<void>>()
   /** Frozen knowledge block per session: DSH may re-evaluate `context.text(assembly)` per request. */
   private readonly sessionBlocks = new Map<string, string>()
   private readonly inflight = new Set<Promise<unknown>>()
@@ -423,32 +425,40 @@ export class EconomizerService implements EconomizerApi {
     if (config.mode !== 'active' || !config.loopguardIntervene || !decision.apply) return
     // Record the incident before handing the redirect to the agent. `followup` can start
     // the next turn synchronously, and that turn may finish and read `appliedIncidents`
-    // before this function resumes; recording afterwards loses the incident entirely.
+    // before delivery settles; recording afterwards loses the incident entirely. The
+    // delivery starts as `failed` and is upgraded only after steer/followup really returns.
     const incident: LoopIncident = {
       ...decision.incident,
-      detail: { ...decision.incident.detail, delivery: 'followup-degraded' },
+      detail: { ...decision.incident.detail, delivery: 'failed' },
     }
     const incidents = this.appliedIncidents.get(sessionId) ?? []
     incidents.push(incident)
     this.appliedIncidents.set(sessionId, incidents)
     this.redirectedTurns.set(sessionId, turn)
-    let delivered: RedirectDelivery = false
-    try {
-      delivered = this.options.applyRedirect?.(sessionId, decision.nudge ?? '') ?? false
-    } catch (error) {
-      this.logWarn('loop redirect delivery', error)
-    }
-    const ok = typeof delivered === 'boolean' ? delivered : delivered.ok
-    if (!ok) {
-      const remaining = incidents.filter((entry) => entry !== incident)
-      if (remaining.length) this.appliedIncidents.set(sessionId, remaining)
-      else this.appliedIncidents.delete(sessionId)
-      if (this.redirectedTurns.get(sessionId) === turn) this.redirectedTurns.delete(sessionId)
-      return
-    }
-    const delivery = typeof delivered === 'boolean' ? 'followup-degraded' : (delivered.delivery ?? 'followup-degraded')
-    incident.detail = { ...incident.detail, delivery }
-    this.logger.info?.(`token-economizer: loop redirect delivered (${delivery}) for ${sessionId}`)
+    const delivery = (async () => {
+      let delivered: RedirectDelivery = false
+      try {
+        delivered = await (this.options.applyRedirect?.(sessionId, decision.nudge ?? '') ?? false)
+      } catch (error) {
+        this.logWarn('loop redirect delivery', error)
+        delivered = false
+      }
+      const ok = typeof delivered === 'boolean' ? delivered : delivered.ok
+      if (!ok) {
+        const remaining = incidents.filter((entry) => entry !== incident)
+        if (remaining.length) this.appliedIncidents.set(sessionId, remaining)
+        else this.appliedIncidents.delete(sessionId)
+        if (this.redirectedTurns.get(sessionId) === turn) this.redirectedTurns.delete(sessionId)
+        this.logger.info?.(`token-economizer: loop redirect delivery failed for ${sessionId}`)
+        return
+      }
+      const mode = typeof delivered === 'boolean' ? 'followup-degraded' : (delivered.delivery ?? 'followup-degraded')
+      incident.detail = { ...incident.detail, delivery: mode }
+      this.logger.info?.(`token-economizer: loop redirect delivered (${mode}) for ${sessionId}`)
+    })()
+    const task = delivery.catch((error: unknown) => this.logWarn('loop redirect delivery', error))
+    this.redirectDeliveries.add(task)
+    void task.finally(() => this.redirectDeliveries.delete(task))
   }
 
   /** Start one detached decision per turn; the guard itself enforces its sampling gaps. */
@@ -499,8 +509,8 @@ export class EconomizerService implements EconomizerApi {
   async flush(): Promise<void> {
     // A detached decision can schedule its successor while we await it; drain until both
     // sets are empty so tests and graceful shutdown observe the settled state.
-    while (this.inflight.size > 0) {
-      await Promise.allSettled([...this.inflight])
+    while (this.inflight.size > 0 || this.redirectDeliveries.size > 0) {
+      await Promise.allSettled([...this.inflight, ...this.redirectDeliveries])
       await this.queue.drain()
     }
     await this.queue.drain()
@@ -703,7 +713,12 @@ export class EconomizerService implements EconomizerApi {
       } catch (error) {
         this.logWarn('loopguard envelope save', error)
       }
-      const applied = this.appliedIncidents.get(session.sessionId) ?? []
+      // A deferred steer/followup settles on the next macrotask. Do not write a stale
+    // delivery mode (or drop a failed attempt) just because the turn ended first.
+    while (this.redirectDeliveries.size > 0) {
+      await Promise.allSettled([...this.redirectDeliveries])
+    }
+    const applied = this.appliedIncidents.get(session.sessionId) ?? []
       if (applied.length) this.appliedIncidents.delete(session.sessionId)
       for (const incident of applied) {
         try {

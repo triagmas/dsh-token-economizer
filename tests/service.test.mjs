@@ -78,7 +78,9 @@ async function setup(configOverrides = {}, options = {}) {
       // Lets a test observe the service state at the moment the redirect is handed to
       // the agent, which is where a re-entrant followup can race the incident bookkeeping.
       options.onRedirect?.({ service, sessionId, text })
-      return options.redirectDelivery ?? true
+      return typeof options.redirectDelivery === 'function'
+        ? options.redirectDelivery()
+        : (options.redirectDelivery ?? true)
     },
     onToolsChanged: (root) => reconciles.push(root),
   })
@@ -529,6 +531,117 @@ test('a delayed followup redirect records its delivery mode and a still-stuck fo
     assert.ok(
       history.incidents.some((incident) => incident.kind === 'still-stuck'),
       'a repeat after the redirect is recorded as still-stuck',
+    )
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('a deferred steer redirect is recorded only after it succeeds', async () => {
+  let settled = 0
+  const env = await setup(
+    { mode: 'active', loopguardIntervene: true, loopguardJudge: true },
+    {
+      redirectDelivery: () =>
+        new Promise((resolve) => {
+          setImmediate(() => {
+            settled += 1
+            resolve({ ok: true, delivery: 'steer' })
+          })
+        }),
+    },
+  )
+  try {
+    for (let turn = 1; turn <= 5; turn += 1) {
+      await finishTurn(env.service, {
+        turn,
+        calls: Array.from({ length: 30 }, () => call('bash', { command: 'pnpm test' }, false, '2 passed in 0.01s')),
+      })
+    }
+    const session = observed('session-1', PROJECT)
+    env.service.observe(session)
+    env.service.beginTurn(session, 6)
+    const failures = Array.from({ length: 22 }, () =>
+      call('bash', { command: 'pnpm test' }, true, 'FAILED tests/test_app.py::test_add - AssertionError: 1 != 2'),
+    ).map((entry) => ({ ...entry, turn: 6 }))
+
+    for (const entry of failures) env.service.onToolResult(session, entry)
+    await env.service.flush()
+    env.service.onToolResult(session, { ...call(), turn: 6 })
+    assert.equal(env.redirects.length, 1, 'the verdict reaches the deferred delivery')
+
+    env.service.onTurnEnd({
+      session,
+      turn: 6,
+      startedAt: '2026-01-01T00:00:00.000Z',
+      endedAt: '2026-01-01T00:06:00.000Z',
+      calls: failures,
+      modelCalls: [],
+      usage: { inputTokens: 0, outputTokens: 0 },
+      failedToolCalls: 22,
+      assistantText: 'done',
+      partial: false,
+    })
+    await env.service.flush()
+
+    assert.equal(settled, 1, 'the deferred delivery settled exactly once')
+    const history = await env.service.loops({ sessionId: 'session-1' })
+    const redirect = history.incidents.find((incident) => incident.intervention === 'nudge')
+    assert.ok(redirect, 'the successful steer is recorded')
+    assert.equal(redirect.detail.delivery, 'steer', 'steer is recorded only after it returns')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('a rejected deferred redirect is recorded as failed', async () => {
+  const env = await setup(
+    { mode: 'active', loopguardIntervene: true, loopguardJudge: true },
+    {
+      redirectDelivery: () =>
+        new Promise((resolve) => {
+          setImmediate(() => resolve({ ok: false, delivery: 'failed' }))
+        }),
+    },
+  )
+  try {
+    for (let turn = 1; turn <= 5; turn += 1) {
+      await finishTurn(env.service, {
+        turn,
+        calls: Array.from({ length: 30 }, () => call('bash', { command: 'pnpm test' }, false, '2 passed in 0.01s')),
+      })
+    }
+    const session = observed('session-1', PROJECT)
+    env.service.observe(session)
+    env.service.beginTurn(session, 6)
+    const failures = Array.from({ length: 22 }, () =>
+      call('bash', { command: 'pnpm test' }, true, 'FAILED tests/test_app.py::test_add - AssertionError: 1 != 2'),
+    ).map((entry) => ({ ...entry, turn: 6 }))
+
+    for (const entry of failures) env.service.onToolResult(session, entry)
+    await env.service.flush()
+    env.service.onToolResult(session, { ...call(), turn: 6 })
+    assert.equal(env.redirects.length, 1, 'the refusal still reached the delivery hook')
+
+    env.service.onTurnEnd({
+      session,
+      turn: 6,
+      startedAt: '2026-01-01T00:00:00.000Z',
+      endedAt: '2026-01-01T00:06:00.000Z',
+      calls: failures,
+      modelCalls: [],
+      usage: { inputTokens: 0, outputTokens: 0 },
+      failedToolCalls: 22,
+      assistantText: 'done',
+      partial: false,
+    })
+    await env.service.flush()
+
+    const history = await env.service.loops({ sessionId: 'session-1' })
+    assert.equal(
+      history.incidents.filter((incident) => incident.intervention === 'nudge').length,
+      0,
+      'a refused delivery is never recorded as a redirect',
     )
   } finally {
     await rm(env.home, { recursive: true, force: true })
