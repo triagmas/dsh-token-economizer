@@ -17,10 +17,10 @@ page, `/economizer config set <key>=<value>`, or the plugin's Settings tab.
 | `microskillsEnabled` | `true` | boolean | Learn project facts from finished tasks. |
 | `microskillsInject` | `false` | boolean | Send confirmed facts to the model (ACTIVE only). |
 | `microskillsProfile` | `envfacts` | `envfacts`, `distiller`, `envfacts+distiller` | `envfacts` is local and LLM-free; `distiller` uses the optional proposer (costs tokens); combined runs both. |
-| `microskillsMaxFacts` | `12` | 0–50 | Maximum facts in the injected block. |
-| `microskillsMaxTokens` | `700` | 0–4000 | Token budget of the injected block (~4 bytes per token). |
-| `microskillsMinConfirmations` | `2` | 1–10 | Independent confirmations before a candidate becomes active. |
-| `microskillsRetireDays` | `90` | 1–3650 | Retire facts not exercised for this long. |
+| `microskillsMaxFacts` | `4` | 0–50 | Maximum facts in the injected block. |
+| `microskillsMaxTokens` | `150` | 0–4000 | Token budget of the injected block (~4 bytes per token). |
+| `microskillsMinConfirmations` | `3` | 1–10 | Independent confirmations before a candidate becomes active. |
+| `microskillsRetireDays` | `0` | 0–3650 | Retire facts not exercised for this long; `0` disables retirement. |
 
 ## Tool pruning
 
@@ -32,7 +32,7 @@ page, `/economizer config set <key>=<value>`, or the plugin's Settings tab.
 | `toolpruneMinSessions` | `2` | 1–100 | Minimum observed sessions the prompt evidence must be spread over. |
 | `toolpruneSessions` | `5` | 1–100 | Sessions shortcut: hide an unused tool even when its prompt count is lower. |
 | `toolpruneQuietMinutes` | `60` | 0–10080 | Project inactivity before new automatic hides apply at the next session. `0` applies them at the next session immediately. |
-| `toolpruneReauditEvery` | `25` | 0–1000 | Re-read the catalog every N tasks; `0` disables periodic re-audit. |
+| `toolpruneReauditEvery` | `0` | 0–1000 | Re-read the catalog every N tasks; `0` disables periodic re-audit. |
 | `toolpruneAllowlist` | `[]` | string[] | Tool names that are never hidden. |
 
 Protected tools from upstream are always kept: shell/read/write/edit/patch,

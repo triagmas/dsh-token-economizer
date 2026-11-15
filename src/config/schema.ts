@@ -49,29 +49,29 @@ export const Config = z.object({
     .min(0)
     .max(50)
     .step(1)
-    .default(12)
+    .default(4)
     .description('Maximum number of active facts kept in the injected block.')
     .volatile(),
   microskillsMaxTokens: z.number()
     .min(0)
     .max(4000)
     .step(50)
-    .default(700)
+    .default(150)
     .description('Token budget of the injected knowledge block (~4 characters per token).')
     .volatile(),
   microskillsMinConfirmations: z.number()
     .min(1)
     .max(10)
     .step(1)
-    .default(2)
+    .default(3)
     .description('Independent confirmations required before a candidate fact becomes active.')
     .volatile(),
   microskillsRetireDays: z.number()
-    .min(1)
+    .min(0)
     .max(3650)
     .step(1)
-    .default(90)
-    .description('Retire an active fact that has not been exercised for this many days.')
+    .default(0)
+    .description('Retire an active fact that has not been exercised for this many days (0 disables retirement).')
     .volatile(),
 
   // --- Tool pruning -------------------------------------------------------
@@ -115,7 +115,7 @@ export const Config = z.object({
     .min(0)
     .max(1000)
     .step(1)
-    .default(25)
+    .default(0)
     .description('Reload the full tool catalog every N tasks (0 disables the periodic re-audit).')
     .volatile(),
   toolpruneAllowlist: z.array(z.string())
@@ -269,17 +269,17 @@ export const CONFIG_DEFAULTS: ResolvedConfig = {
   microskillsEnabled: true,
   microskillsInject: false,
   microskillsProfile: 'envfacts',
-  microskillsMaxFacts: 12,
-  microskillsMaxTokens: 700,
-  microskillsMinConfirmations: 2,
-  microskillsRetireDays: 90,
+  microskillsMaxFacts: 4,
+  microskillsMaxTokens: 150,
+  microskillsMinConfirmations: 3,
+  microskillsRetireDays: 0,
   toolpruneEnabled: true,
   toolpruneMode: 'observe',
   toolpruneEvidence: 10,
   toolpruneMinSessions: 2,
   toolpruneSessions: 5,
   toolpruneQuietMinutes: 60,
-  toolpruneReauditEvery: 25,
+  toolpruneReauditEvery: 0,
   toolpruneAllowlist: [],
   loopguardEnabled: true,
   loopguardIntervene: false,
@@ -351,7 +351,7 @@ export function resolveConfig(raw: Record<string, unknown> | undefined | null): 
       1,
       10,
     ),
-    microskillsRetireDays: num(source.microskillsRetireDays, CONFIG_DEFAULTS.microskillsRetireDays, 1, 3650),
+    microskillsRetireDays: num(source.microskillsRetireDays, CONFIG_DEFAULTS.microskillsRetireDays, 0, 3650),
     toolpruneEnabled: bool(source.toolpruneEnabled, CONFIG_DEFAULTS.toolpruneEnabled),
     toolpruneMode: oneOf(
       source.toolpruneMode,
