@@ -476,22 +476,37 @@ function activeFact(overrides = {}) {
   }
 }
 
-test('automatic pruning persists the hidden set and restore makes the choice durable', async () => {
-  const env = await setup({ mode: 'active', toolpruneMode: 'automatic', toolpruneMinSessions: 1, toolpruneEvidence: 1 })
+test('automatic pruning persists the hidden set for the next session, then restore is durable', async () => {
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
+  })
   try {
+    // The evidence forms in session 1, but the running session keeps its catalog.
     await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
     const project = await env.store.project(PROJECT)
-    const deny = await env.service.denySetForSession('session-1')
+    assert.deepEqual(await env.service.denySetForSession('session-1'), [], 'the current session is never rewritten')
+
+    // Session 2 starts and picks up the pending hide.
+    await finishTurn(env.service, {
+      sessionId: 'session-2',
+      turn: 1,
+      calls: [call('edit', { path: '/work/economizer-project/a.ts' })],
+    })
+    const deny = await env.service.denySetForSession('session-2')
     assert.ok(deny.includes('rare_tool'))
     let toolsFile = await project.loadTools()
     assert.ok(toolsFile.pruned.includes('rare_tool'), 'the applied deny set is written to tools.json')
 
-    const restored = await env.service.toolsAction({ action: 'restore', names: ['rare_tool'] }, { sessionId: 'session-1' })
+    const restored = await env.service.toolsAction({ action: 'restore', names: ['rare_tool'] }, { sessionId: 'session-2' })
     assert.equal(restored.changed, 1)
     toolsFile = await project.loadTools()
     assert.equal(toolsFile.pruned.includes('rare_tool'), false)
     assert.equal(toolsFile.tools.rare_tool.restored, true, 'restore is durable in the project row')
-    assert.deepEqual(await env.service.denySetForSession('session-1'), [])
+    assert.deepEqual(await env.service.denySetForSession('session-2'), [])
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }
