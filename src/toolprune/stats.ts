@@ -32,6 +32,7 @@ import { approxTokens } from '../pricing/weights.js'
 import type { ToolStat } from '../core/types.js'
 import type { ToolsFile } from '../storage/store.js'
 import { isProtectedName, isToolInactive } from './policy.js'
+import { allowlistMatches } from './glob.js'
 
 /** Extension fields persisted with a `ToolStat` row; ignored by readers that predate them. */
 export interface ToolRow extends ToolStat {
@@ -175,7 +176,6 @@ export function observeToolAvailability(
   const taskIndex = isFiniteNumber(projectTaskIndex) && projectTaskIndex >= 0 ? projectTaskIndex : 0
   const sessionKey = typeof sessionId === 'string' && sessionId !== '' ? sessionId : null
   const protectedSet = asSet(protectedTools)
-  const allowlistSet = asSet(allowlist)
 
   // A tool that vanished from the catalog is kept but marked, never silently deleted.
   for (const [name, stat] of Object.entries(file.tools)) {
@@ -191,7 +191,7 @@ export function observeToolAvailability(
       stat = newToolStat(name, {
         descriptionTokens: descriptionTokensFor(descriptor),
         protected: isProtectedName(name) || protectedSet.has(name),
-        allowlisted: allowlistSet.has(name),
+        allowlisted: allowlistMatches(name, allowlist),
       }) as ToolRow
       file.tools[name] = stat
       result.added += 1
@@ -200,7 +200,7 @@ export function observeToolAvailability(
     // Flags are cheap to refresh and keep the UI honest even when configuration changed.
     stat.name = name
     stat.protected = isProtectedName(name) || protectedSet.has(name)
-    stat.allowlisted = allowlistSet.has(name)
+    stat.allowlisted = allowlistMatches(name, allowlist)
     if (descriptor.descriptionTokens !== undefined || descriptor.description !== undefined) {
       const tokens = descriptionTokensFor(descriptor)
       if (tokens > 0) stat.descriptionTokens = tokens

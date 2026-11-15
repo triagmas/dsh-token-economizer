@@ -38,6 +38,7 @@
 import type { ResolvedConfig } from '../config/schema.js'
 import type { ToolStat } from '../core/types.js'
 import type { ToolsFile } from '../storage/store.js'
+import { allowlistMatches } from './glob.js'
 
 /** A `ToolStat` row with the documented extension fields owned by `toolprune/stats.ts`. */
 export interface PolicyToolRow extends ToolStat {
@@ -243,17 +244,9 @@ export function observedSessions(file: ToolsFile): number {
   return max
 }
 
-/** Normalize a `toolpruneAllowlist` config value. */
-function allowlistSet(config: ResolvedConfig): Set<string> {
-  const set = new Set<string>()
-  const list = Array.isArray(config.toolpruneAllowlist) ? config.toolpruneAllowlist : []
-  for (const name of list) if (typeof name === 'string' && name.trim()) set.add(name.trim())
-  return set
-}
-
-/** True when the configuration says this tool must never be pruned. */
+/** True when the configuration says this tool must never be pruned (name or pattern). */
 export function isAllowlisted(name: string, config: ResolvedConfig): boolean {
-  return allowlistSet(config).has(name)
+  return allowlistMatches(name, config.toolpruneAllowlist)
 }
 
 /** True when the tool has ever been called (upstream `used_tools`; a single use protects). */

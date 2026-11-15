@@ -120,7 +120,7 @@ export const Config = z.object({
     .volatile(),
   toolpruneAllowlist: z.array(z.string())
     .default([])
-    .description('Tool names that must never be pruned.')
+    .description('Tool names or glob patterns (*, **, ?) that must never be pruned.')
     .volatile(),
 
   // --- Failure-loop guard -------------------------------------------------

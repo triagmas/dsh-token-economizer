@@ -31,6 +31,7 @@ import { buildUsageReport, parsePriceTable, type PriceTable } from '../metrics/l
 import {
   PROTECTED_TOOLS,
   appliedDenySet,
+  allowlistMatches,
   computeDenySet,
   evaluateCandidate,
   observeToolAvailability,
@@ -1127,7 +1128,10 @@ export class EconomizerService implements EconomizerApi {
         const status = toolStatus({
           pruned: Boolean(row.pruned) || file.pruned.includes(row.name),
           protected: row.protected || PROTECTED_TOOLS.has(row.name),
-          allowlisted: row.allowlisted || config.toolpruneAllowlist.includes(row.name) || Boolean((row as { restored?: boolean }).restored),
+          allowlisted:
+            row.allowlisted ||
+            allowlistMatches(row.name, config.toolpruneAllowlist) ||
+            Boolean((row as { restored?: boolean }).restored),
         })
         if (status === 'hidden') hiddenTokens += row.descriptionTokens
         entries.push({

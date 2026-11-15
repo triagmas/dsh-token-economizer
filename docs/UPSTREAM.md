@@ -79,9 +79,9 @@ once per session id even if the same session is folded again.
      `envfacts` is LLM-free; `distiller` renders confirmed/manual facts and
      builds the proposer prompt, so it does not invent facts without a caller;
    * `toolprune`: the per-task LLM tool judge, Codex capability controller,
-     explicit `refresh-catalog`/`measure`/`apply-pending` actions, and glob
-     protection patterns; this port uses evidence pruning plus exact-name
-     protection and DSH-native `tools.restrict()`. Evidence is counted once per
+     explicit `refresh-catalog`/`measure`/`apply-pending` actions; this port
+     uses evidence pruning, name/glob protection (`toolpruneAllowlist` accepts
+     `*`, `**` and `?`) and DSH-native `tools.restrict()`. Evidence is counted once per
      session, the hidden set is persisted in `tools.json`, an explicit restore
      is durable per project, and a periodic re-audit reloads the full catalog
      for one turn. Orchestration/optional tools are prunable; the work surface

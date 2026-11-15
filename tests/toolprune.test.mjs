@@ -15,6 +15,7 @@ import {
   computeDenySet,
   evaluateCandidate,
   hasEverBeenUsed,
+  allowlistMatches,
   isAllowlisted,
   isProtectedName,
   isToolInactive,
@@ -369,6 +370,38 @@ test('evaluateCandidate explains every guard', () => {
   const allowlisted = config({ toolpruneMode: 'automatic', toolpruneAllowlist: ['some_tool'] })
   assert.equal(isAllowlisted('some_tool', allowlisted), true)
   assert.equal(evaluateCandidate(stat(), allowlisted, facts).reason, 'allowlisted')
+})
+
+test('allowlist entries are exact names or glob patterns', () => {
+  const names = ['read', 'mcp__alpha__search', 'mcp__beta__fetch', 'some_tool']
+  const file = observeSessions(emptyTools(), [names, names, names])
+  const automatic = config({ toolpruneMode: 'automatic', toolpruneEvidence: 1, toolpruneMinSessions: 1 })
+
+  assert.equal(allowlistMatches('mcp__alpha__search', ['mcp__*']), true)
+  assert.equal(allowlistMatches('some_tool', ['some_tool']), true)
+  assert.equal(allowlistMatches('some_tool_extra', ['some_tool']), false, 'a plain name stays exact')
+  assert.equal(allowlistMatches('mcp__alpha__search', ['mcp__?eta__*']), false)
+  assert.equal(allowlistMatches('mcp__beta__fetch', ['mcp__?eta__*']), true)
+
+  const prefixed = config({ ...automatic, toolpruneAllowlist: ['mcp__*'] })
+  assert.equal(isAllowlisted('mcp__alpha__search', prefixed), true)
+  assert.equal(evaluateCandidate(file.tools.mcp__alpha__search, prefixed, { catalogSize: 4, observedSessions: 3, reaudit: false }).reason, 'allowlisted')
+  assert.deepEqual(computeDenySet(file, prefixed), ['some_tool'], 'only the non-matching unused tool is hidden')
+
+  const doubled = config({ ...automatic, toolpruneAllowlist: ['mcp__**'] })
+  assert.deepEqual(computeDenySet(file, doubled), ['some_tool'])
+
+  const exact = config({ ...automatic, toolpruneAllowlist: ['some_tool'] })
+  assert.deepEqual(computeDenySet(file, exact), ['mcp__alpha__search', 'mcp__beta__fetch'])
+
+  assert.deepEqual(computeDenySet(file, config({ ...automatic, toolpruneAllowlist: ['*'] })), [])
+})
+
+test('catalog observation marks glob-matched tools as allowlisted', () => {
+  const file = emptyTools()
+  observeToolAvailability(file, 0, ['mcp__alpha__search', 'some_tool'], [], ['mcp__*'])
+  assert.equal(file.tools.mcp__alpha__search.allowlisted, true)
+  assert.equal(file.tools.some_tool.allowlisted, false)
 })
 
 test('reauditDue follows the upstream evidence_reaudit cadence', () => {

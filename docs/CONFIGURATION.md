@@ -33,7 +33,7 @@ page, `/economizer config set <key>=<value>`, or the plugin's Settings tab.
 | `toolpruneSessions` | `5` | 1–100 | Sessions shortcut: hide an unused tool even when its prompt count is lower. |
 | `toolpruneQuietMinutes` | `60` | 0–10080 | Project inactivity before new automatic hides apply at the next session. `0` applies them at the next session immediately. |
 | `toolpruneReauditEvery` | `0` | 0–1000 | Re-read the catalog every N tasks; `0` disables periodic re-audit. |
-| `toolpruneAllowlist` | `[]` | string[] | Tool names that are never hidden. |
+| `toolpruneAllowlist` | `[]` | string[] | Tool names or glob patterns (`mcp__*`, `**`, `?`) that are never hidden. A plain name stays exact. |
 
 Protected tools from upstream are always kept: shell/read/write/edit/patch,
 search, planning and delegation essentials. The Settings tab shows the effective
