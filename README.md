@@ -26,7 +26,7 @@ fidelity to the pinned upstream commit, not a general redesign.
 | Mechanism | Learning signal | What it can change (ACTIVE only) | Default |
 | --- | --- | --- | --- |
 | Micro-skills | Repeated commands, repairs and file conventions across sessions in one repository | One attributed prompt block with confirmed facts | measured in SHADOW |
-| Tool pruning | Tool schemas present vs. tools actually called across sessions | Hides evidenced, unused, non-protected tools for that project; the work surface and controls stay | recorded in SHADOW |
+| Tool pruning | Tool schemas present vs. tools actually called across sessions | Hides evidenced, unused, non-protected tools for that project; the work surface, controls, `skill` and `web_*` stay | recorded in SHADOW |
 | Failure-loop guard | Repeated failing tool calls, edit churn (including edits through Bash), stagnation | At most **one** bounded redirect per turn, delivered with `steer` inside it (`followup` fallback) | detected in SHADOW |
 
 Modes:
@@ -188,8 +188,12 @@ Benchmark summary (**schema-token counts and stated assumptions, not provider co
   `tools.json`, supports a durable per-project restore, and uses the DSH-native
   `tools.restrict()` surface. Name/glob protection **is** supported:
   `toolpruneAllowlist` accepts exact names, `*`, `**` and `?` patterns such as `mcp__*`.
-  The orchestration/optional tools are prunable; the file/shell/analysis work surface and
-  the human-control tools are not.
+  The orchestration/optional execution tools (`subagent`, `workflow`, `schedule_*`,
+  `job_*`, goal tools, UI renderers) are prunable; the file/shell/analysis work surface,
+  the human-control tools, `skill` and the `web_*` family are not. Protecting `skill` and
+  `web_*` is a deliberate deviation from upstream's optional-tool policy: losing skill
+  loading or network access after a quiet period would be a capability regression, not
+  just a schema saving. See [docs/UPSTREAM.md](docs/UPSTREAM.md).
 * The redirect is written by the model only when the paid judge returns a confident
   *stuck* verdict; a heuristic-only or ambiguous verdict uses the deterministic
   count template rather than spending a second model call.

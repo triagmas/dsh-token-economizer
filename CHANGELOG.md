@@ -66,6 +66,11 @@ Fidelity fixes against Microsoft TokenEconomizer, pinned commit
   `loopguardIntervene=false` as "observing only" instead of implying redirects.
 - **`toolpruneAllowlist` accepts glob patterns.** Exact names remain exact;
   `*`, `**` and `?` allow upstream-style protection such as `mcp__*`.
+- **`skill` and `web_*` are never auto-hidden.** They were previously in the
+  prunable optional-tool class, so a quiet project could lose skill loading or
+  network access. They are now protected by name/prefix. This is a deliberate
+  deviation from upstream's optional-tool policy; the existing deny set is
+  slightly smaller, and the reason is recorded in `docs/UPSTREAM.md`.
 
 ### Added
 

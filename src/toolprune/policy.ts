@@ -56,11 +56,17 @@ export interface PolicyToolRow extends ToolStat {
  * tools a person needs to answer, publish or manage the Harness. These tools are NEVER
  * auto-pruned; they are still tracked so the Tools page can report their real usage.
  *
- * Deliberately NOT protected: orchestration and optional capability tools (`subagent`,
- * `workflow`, `schedule_*`, `session_*`, `job_*`, `web_*`, goal tools, skills, worktrees,
- * UI renderers). Upstream prunes exactly this class of tools after evidence, and hiding
- * them is reversible from the Tools tab. Protecting them all made automatic pruning a
- * no-op on a stock DSH profile; see docs/UPSTREAM.md.
+ * Deliberately NOT protected: orchestration and optional execution tools (`subagent`,
+ * `workflow`, `schedule_*`, `session_*`, `job_*`, goal tools, worktrees, UI renderers).
+ * Upstream prunes exactly this class of tools after evidence, and hiding them is
+ * reversible from the Tools tab. Protecting them all made automatic pruning a no-op on
+ * a stock DSH profile; see docs/UPSTREAM.md.
+ *
+ * DEVIATION from upstream: `skill` and the `web_*` family are protected here even
+ * though upstream's class-based policy would prune them. `skill` unlocks every other
+ * procedure, and `web_*` is network access; losing either after a quiet period is a
+ * capability regression, not just schema savings. The cost is a slightly smaller
+ * automatic deny set, recorded in docs/UPSTREAM.md.
  *
  * Upstream: `tokeneconomizer/toolprune/tools.py` :: `PROTECTED_TOOLS` — "Tools that
  * must always stay available regardless of usage (the real work surface)."
@@ -101,13 +107,15 @@ export const PROTECTED_TOOLS: ReadonlySet<string> = new Set([
   'ask_user_question',
   'present',
   'plugin_manager',
+  // --- DSH capability enablers (pinned deviation; see the comment above) ---
+  'skill',
 ])
 
 /**
  * DSH tool families protected by prefix. `lint_*` and `codegraph_*` are analysis/read
  * surfaces; `terminal_*` owns long-lived processes whose loss would strand running work.
  */
-export const PROTECTED_PREFIXES: readonly string[] = Object.freeze(['lint_', 'codegraph_', 'terminal_'])
+export const PROTECTED_PREFIXES: readonly string[] = Object.freeze(['lint_', 'codegraph_', 'terminal_', 'web_'])
 
 /** True when a tool name is on the never-auto-prune work/orchestration surface. */
 export function isProtectedName(name: string): boolean {

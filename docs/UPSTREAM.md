@@ -130,8 +130,11 @@ session concept, matching upstream.
      project. Periodic full-catalog re-audit exists but is **off by default**
      (`toolpruneReauditEvery=0`); setting it to N reloads the full catalog for
      one task every N audit tasks instead of pruning. Orchestration/optional
-     tools are prunable; the work surface and human-control tools stay
-     protected;
+     execution tools are prunable; the work surface and human-control tools stay
+     protected. **Deviation:** this port also protects `skill` and the `web_*`
+     family even though upstream's class-based policy would prune them, because
+     losing skill loading or network access is a capability regression rather
+     than schema savings;
    * `loopguard`: the `stop` mode and per-threshold pinning; the envelope IS
      persisted per project in `loopguard.json` and restored before the first
      decision (unlike an earlier version of this port, which rebuilt it per

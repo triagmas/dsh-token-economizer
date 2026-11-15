@@ -439,11 +439,11 @@ test('session-id counting: repeated turns in one session advance the evidence on
   assert.equal(file.tools.rare_tool.unusedSessions, 2)
 })
 
-test('orchestration and optional tools are prunable, the work surface and safety tools stay protected', () => {
-  for (const name of ['read', 'write', 'edit', 'bash', 'grep', 'glob', 'read_image', 'ask_user_question', 'present', 'plugin_manager']) {
+test('orchestration and optional tools are prunable, the work surface and capability enablers stay protected', () => {
+  for (const name of ['read', 'write', 'edit', 'bash', 'grep', 'glob', 'read_image', 'ask_user_question', 'present', 'plugin_manager', 'skill', 'web_search', 'web_fetch', 'web_custom']) {
     assert.equal(isProtectedName(name), true, `${name} must stay protected`)
   }
-  for (const name of ['web_search', 'subagent', 'workflow', 'schedule_create', 'job_output', 'session_search', 'todo_write', 'skill', 'create_goal', 'render_ui']) {
+  for (const name of ['subagent', 'workflow', 'schedule_create', 'job_output', 'session_search', 'todo_write', 'create_goal', 'render_ui']) {
     assert.equal(isProtectedName(name), false, `${name} must be prunable`)
   }
   assert.equal(isProtectedName('codegraph_explore'), true, 'analysis helpers stay protected')

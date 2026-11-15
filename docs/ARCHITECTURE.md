@@ -53,7 +53,8 @@ Python runtime is required; the upstream repository is vendored under
   `propose` (report candidates), `automatic` (deny eligible tools). Every hidden
   tool is one `restrict()` call; a restore is durable in the project row and can
   be made from the UI or `/economizer tools restore`. Orchestration/optional
-  tools are eligible; the file/shell/analysis surface and human controls are not.
+  execution tools are eligible; the file/shell/analysis surface, human controls,
+  `skill` and `web_*` are not (the last two are a documented deviation).
   `toolpruneAllowlist` matches exact names or `*`/`**`/`?` patterns. A new
   automatic hide is held while the repository is active and applies in a later
   quiet session (default 60 minutes), or after 24 hours, so a live session keeps
