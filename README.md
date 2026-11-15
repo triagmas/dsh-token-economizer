@@ -168,7 +168,7 @@ Last recorded results in this checkout:
 unit/integration: 232 tests, 232 pass, 0 fail
 parity (pinned Python upstream): 43 tests, 43 pass, 0 fail
 smoke: PASS
-install smoke (isolated DSH_HOME): local and GitHub install/patch/uninstall PASS; the GitHub profile booted headless and served the authenticated Web UI (see [docs/LIVE-CHECK.md](docs/LIVE-CHECK.md))
+install smoke (isolated DSH_HOME): local and GitHub install/patch/uninstall PASS; GitHub runs proved the fourth-session tool list and the default thresholds, and the Web UI served an authenticated route (see [docs/LIVE-CHECK.md](docs/LIVE-CHECK.md))
 ```
 
 Benchmark summary (**schema-token counts and stated assumptions, not provider cost**; synthetic but shipped code paths; see [docs/BENCHMARK.md](docs/BENCHMARK.md)):
