@@ -80,22 +80,37 @@ session concept, matching upstream.
    context (not system instructions); tool pruning uses
    `agent.ctx.tools.restrict()`. The loop guard decides inside `onToolResult`
    but delivers at most one redirect per turn through the public
-   `agent.followup(message)`, recorded as `followup-degraded`. DSH exposes
-   `agent.steer`, but this port does not call it or `agent.inject()`. The
-   redirect therefore arrives **after the current turn**, not inside it, and
-   upstream's in-turn behavior is not achieved. DSH rejects a `followup` issued
-   while the tool-result append is still being published, so the adapter queues
-   it one macrotask later; a rejected delivery is logged, never thrown. It never
-   stops the agent. The
-   redirect is written by the configured model only
-   after a confident *stuck* verdict and only when both `loopguardIntervene`
-   and `loopguardJudge` are on; every other path uses the deterministic count
-   template. Subagents are never judged or redirected. DSH may evaluate the
-   prompt context text for every model request; the plugin freezes the rendered
-   block at the first lookup per session -- including an empty block -- as
-   upstream renders per session.
+   `agent.steer(message)`, recorded as `steer`. DSH schedules a steer for the
+   next model step; in the live `0.2.2-rc.3` run the redirect `user/message`
+   appeared before `turn/end` (after the model's last step, so consumption can
+   slip to the next step). This is closer to upstream's in-turn nudge but is
+   still a queued message, not an injection into the running model call. If
+   `steer` is unavailable or throws, the adapter falls back to
+   `agent.followup(message)`, recorded as `followup-degraded` and delivered
+   after the turn. `agent.inject()` is not used. DSH rejects either call while
+   the tool-result append is still being published, so the adapter queues it one
+   macrotask later; the `steer`/`followup-degraded`/`failed` result is recorded
+   only after the real call returns, and every rejection is logged, never
+   thrown. The redirect never stops the agent. It is written by the configured
+   model only after a confident *stuck* verdict and only when both
+   `loopguardIntervene` and `loopguardJudge` are on; every other path uses the
+   deterministic count template. Subagents are never judged or redirected.
+   DSH may evaluate the prompt context text for every model request; once the
+   project runtime is warm, the plugin freezes the rendered block at the
+   session's first lookup (including a genuinely empty block), as upstream
+   renders per session. A lookup that races the asynchronous warm-up is not
+   cached: it returns empty for that assembly and lets a later assembly see the
+   project block, instead of pinning the session to a false empty prompt.
 4. **No auto-update.** Upstream is vendored at a fixed revision. See below.
-5. **Not ported, by scope.** The following upstream components are deliberately
+5. **Explicit opt-in gates (operator-safety deviation).** The plugin starts in
+   SHADOW and never applies a mechanism merely because `mode` is ACTIVE: each
+   of `microskillsInject`, `toolpruneMode=automatic`, and
+   `loopguardIntervene` must be enabled separately. Upstream's library
+   mechanisms can be invoked directly by their caller; this port adds the
+   gates so a mis-set mode cannot rewrite a prompt, hide tools, or insert a
+   redirect without a second deliberate switch. This is not an upstream
+   equivalence and is recorded here as a deviation.
+6. **Not ported, by scope.** The following upstream components are deliberately
    absent rather than silently emulated:
    * `microskills`: the paid proposer is not called automatically (its digest,
      extractor and prompts are ported; the caller may pass proposed facts).

@@ -2,7 +2,7 @@
 
 ## Requirements
 
-* DeepSeek Harness `>=0.2.0 <0.3.0` (developed and tested against `0.2.2-rc.2`)
+* DeepSeek Harness `>=0.2.0 <0.3.0` (developed and tested against `0.2.2-rc.3`)
 * Node.js 22+ (the version DSH 0.2.x requires)
 * An existing DSH profile with the Plugin Manager (the `web` profile is the
   default target)
@@ -62,7 +62,7 @@ The bundle is enabled when installed. Then:
    mechanisms you want:
    * `microskillsInject` — send confirmed project facts to the model;
    * `toolpruneMode = automatic` — hide tools proven unused in this project;
-   * `loopguardIntervene` — allow one `followup` redirect after a stalled turn.
+   * `loopguardIntervene` — allow one `steer` redirect inside a stalled turn (`followup` fallback).
 4. Optionally set `priceTable` to get cost estimates; without it the UI reports
    cost as unavailable.
 

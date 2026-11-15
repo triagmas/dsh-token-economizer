@@ -61,8 +61,11 @@ Python runtime is required; the upstream repository is vendored under
 * **Loop guard** — repeated-failure and stagnation detection using upstream
   thresholds. Edits through Bash (`sed -i`, redirects, inline Python, patches)
   count as edits, so an agent that never calls an edit tool is not scored as
-  untouched. At most one redirect per turn, queued with `agent.followup` after the
-  turn (the guard decision is in-turn; the Nudge is not), a judge confidence floor of `0.7`, no
+  untouched. At most one redirect per turn, delivered with `agent.steer` inside the
+  current turn (one macrotask after the tool result; `agent.followup` is the fallback
+  when steer is absent or rejects). Delivery is recorded only after the call returns:
+  `steer`, `followup-degraded`, or `failed`. The guard decision is in-turn; the nudge is
+  queued for the next model step, not injected into the running one. A judge confidence floor of `0.7`, no
   self-stop, no recursive judging, no judging of subagents, session/turn token
   budgets, fail-open. A confident *stuck* verdict lets the model write the
   redirect; every fallback uses the deterministic template.

@@ -3,6 +3,9 @@
 The benchmark is **deterministic, offline and free**: it exercises the shipped
 TypeScript implementations with synthetic inputs and writes machine-readable results to
 `benchmark/out/results.json` (plus a Markdown table in `benchmark/out/results.md`).
+The headline figures are **schema-token counts and stated synthetic assumptions, not
+provider cost**: no model is called and no provider price is assumed. USD appears only in
+the separate price-table check, and only because that check supplies an explicit table.
 
 ```bash
 npm run build
@@ -29,7 +32,7 @@ are reported and kept separate:
 
 ## Recorded result (this checkout)
 
-Machine: Node `v22.23.2`, DSH `0.2.2-rc.2`. Generated `2026-11-14T04:54:02.461Z`.
+Machine: Node `v22.23.2`, DSH `0.2.2-rc.2` (recorded before the `0.2.2-rc.3` live run). Generated `2026-11-14T04:54:02.461Z`.
 
 | Metric | Value |
 | --- | --- |

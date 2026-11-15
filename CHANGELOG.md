@@ -21,13 +21,27 @@ Fidelity fixes against Microsoft TokenEconomizer, pinned commit
   it in a later session, or after 24 hours. A running session no longer changes
   its tool surface mid-turn; a manual restore or a mode change still applies
   immediately.
-- **The loop guard decides during the tool result, not after the turn.** A
-  confirmed loop redirect is queued with the public `agent.followup()` and
-  recorded as `followup-degraded`; it arrives after the current turn.
-  `agent.steer` is not used, so upstream's in-turn redirect is not
-  achieved. A redirect whose verdict does not arrive is reported as
-  `still-stuck` at turn end; at most one redirect is delivered per turn.
-  Subagents are never judged or redirected.
+- **The loop guard steers the redirect inside the current turn.** A confirmed
+  redirect is delivered with the public `agent.steer()` one macrotask after the
+  tool result. Live DSH `0.2.2-rc.3` accepted it and emitted the redirect
+  `user/message` before `turn/end`; if steer is unavailable or throws, the
+  adapter falls back to `agent.followup()`, which arrives after the turn. The
+  incident records `steer` or `followup-degraded` only after the real call
+  returns, and a refusal is `failed` and is not counted. A redirect whose
+  verdict does not arrive is reported as `still-stuck` at turn end; at most one
+  redirect is delivered per turn. Subagents are never judged or redirected.
+- **A non-zero bash exit is a failed tool call even when `message.isError` is
+  false.** DSH appends `[exit code: N]` and keeps `isError: false` for an
+  ordinary failing command; the observer now parses that marker so the loop
+  guard sees the failure instead of a successful empty result.
+- **`dispose()` drains queued turn finalizers before clearing guards.** A short
+  headless run used to lose the learned envelope (and any delivered incident)
+  because the turn end and dispose raced; the guard state is now flushed first.
+- **The prompt survives either `turn/start` order in the live DSH log.** DSH
+  can emit `turn/start` before `user/message`; clearing `turnUserInitiated` at
+  `turn/start` dropped the prompt evidence. It is now reset only by `finish()`,
+  so both observed orders count the human-initiated turn and `unusedPrompts`
+  advances. Three live sessions produced `unusedPrompts: 3`.
 - **Default micro-skill limits are more conservative.** `microskillsMinConfirmations=3`,
   `microskillsMaxFacts=4`, `microskillsMaxTokens=150`, `microskillsRetireDays=0`
   and `toolpruneReauditEvery=0`.
@@ -35,13 +49,16 @@ Fidelity fixes against Microsoft TokenEconomizer, pinned commit
   confirmation of the same key in one finished session, and the task index
   follows the session, so repeated turns cannot promote a fact on their own or
   shift recency decay. The ported lifecycle has no session concept.
-- **The knowledge block is frozen per session.** When DSH re-evaluates
-  `systemPrompt.context.text(assembly)` on every request, the first lookup is
-  reused, including an empty block and even before the project runtime is
-  warm; a new session sees newer facts.
+- **The knowledge block is frozen per session once the project is warm.** When
+  DSH re-evaluates `systemPrompt.context.text(assembly)` on every request, the
+  first lookup after warm-up is reused, including a genuinely empty block; a
+  new session sees newer facts. A lookup that races the asynchronous warm-up
+  is **not** cached (it starts `warmProject` and returns empty for that
+  assembly), so the session is no longer pinned to a false empty block. The
+  per-session cache is dropped on `agent/disposed`.
 - **Only human-initiated turns count as tool-pruning prompts.** Scheduled
   deliveries, goal continuation rounds, injected context, and the loop guard's
-  own followup redirect no longer advance `unusedPrompts`; subagents are
+  own redirect no longer advances `unusedPrompts`; subagents are
   already skipped. Rows written before the counter existed migrate from their
   unused-session count, so existing evidence is preserved.
 - **Subagents are not loop-guarded.** `beginTurn`, `onToolResult` and

@@ -64,17 +64,18 @@ configured; it creates no new credentials and never bypasses the Harness.
 
 ## Privileges
 
-The plugin uses only public Cordis/DSH APIs. It does not call the
-`agent.steer` or `agent.inject` methods:
+The plugin uses only public Cordis/DSH APIs. It does not call `agent.inject()`:
 
 * read-only session event subscription;
 * `ctx.systemPrompt.context()` for knowledge injection (in ACTIVE mode);
 * `agent.ctx.tools.restrict()` for pruning (reversible, agent-scoped); the
   allowlist matches exact names or `*`/`**`/`?` glob patterns;
-* `agent.followup()` for a loop redirect, delivered after the current turn and
-  recorded as `followup-degraded` — at most one redirect per turn. The
-  `agent.steer()` and `agent.inject()` paths are not used, so the redirect is
-  not in-turn;
+* `agent.steer()` for a loop redirect, deferred one macrotask and scheduled for
+  the next model step inside the current turn, recorded as `steer`; if steer is
+  absent or rejects, `agent.followup()` is the fallback and is recorded as
+  `followup-degraded` (after the turn). At most one redirect per turn. Delivery
+  is recorded only after the real call returns; a refusal is `failed` and is not
+  counted. `agent.inject()` is not used;
 * `ctx.llm.stream()` for the optional judge;
 * `ctx.commands.register()` and the DSH Connection route registry.
 

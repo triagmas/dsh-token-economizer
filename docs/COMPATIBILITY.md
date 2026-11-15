@@ -4,7 +4,7 @@
 
 | Component | Version | Status |
 | --- | --- | --- |
-| DeepSeek Harness | `0.2.2-rc.2` | tested host + WebUI |
+| DeepSeek Harness | `0.2.2-rc.3` | tested host + WebUI |
 | Node.js | `22.23.2` (DSH runtime) | tested |
 | Profile | `web` | tested |
 | Surfaces | CLI command, WebUI settings section, headless plugin load | tested |
@@ -33,7 +33,7 @@ loading.
 | Prompt context | `systemPrompt.context({name, order, text})` | knowledge block | injection disabled, warning logged |
 | Tool catalog | `ctx.tools.definitions(scope?)` | pruning statistics | pruning disabled, warning logged |
 | Tool restriction | `agent.ctx.tools.restrict({deny})` | hide tools | pruning disabled, warning logged |
-| Loop redirect | `agent.followup(message)` marked `followup-degraded`, delivered after the turn | one delayed redirect per turn; no in-turn nudge | no redirects, guard still measures |
+| Loop redirect | `agent.steer(message)` deferred one macrotask, recorded as `steer`; `agent.followup` fallback recorded as `followup-degraded` | one redirect per turn; steer lands inside the turn before `turn/end`, followup after it | no redirects, guard still measures |
 | LLM | `ctx.llm.stream(options)` | judge only in ACTIVE with `loopguardEnabled` + `loopguardIntervene` + `loopguardJudge` and budget | judge disabled, guard uses deterministic rules only |
 | Config | `ctx.get('configEditor').edit(entry, fn)` | persist settings | settings read-only; `/economizer config set` fails |
 
@@ -46,6 +46,12 @@ installation.
 
 * **WebUI requires the DSH client plugin platform** (`platform: web`). Headless
   and CLI use the Host half only.
+* **Long-lived Web sessions keep their starting prompt and tool surface.** DSH
+  fires `agent/created` once per session, not per turn. A newly eligible
+  automatic hide waits in `tools.json.autoPending` for the next session (or host
+  restart), and the knowledge block is frozen at the first prompt after the
+  project warms. Close/reopen the session to apply both; the status view reports
+  pending hides.
 * **JS-only client bundle**: `client/index.js` is plain JavaScript loaded through
   `window.__ModuleLoader__`; it is not a separately built Vite application.
 * **Judge quality depends on the session model.** With `judgeProvider`/
@@ -65,7 +71,7 @@ installation.
 ## Verification evidence (this checkout)
 
 ```text
-node --test tests/*.test.mjs       228 tests, 228 pass, 0 fail
+node --test tests/*.test.mjs       232 tests, 232 pass, 0 fail
 node --test tests/parity/*.test.mjs 43 tests,  43 pass, 0 fail
 node tests/smoke.mjs               PASS (host entry, fake Context)
 node benchmark/run.mjs             deterministic, offline, PASS

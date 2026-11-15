@@ -27,7 +27,7 @@ fidelity to the pinned upstream commit, not a general redesign.
 | --- | --- | --- | --- |
 | Micro-skills | Repeated commands, repairs and file conventions across sessions in one repository | One attributed prompt block with confirmed facts | measured in SHADOW |
 | Tool pruning | Tool schemas present vs. tools actually called across sessions | Hides evidenced, unused, non-protected tools for that project; the work surface and controls stay | recorded in SHADOW |
-| Failure-loop guard | Repeated failing tool calls, edit churn (including edits through Bash), stagnation | At most **one** bounded redirect per turn, queued as a `followup` after it | detected in SHADOW |
+| Failure-loop guard | Repeated failing tool calls, edit churn (including edits through Bash), stagnation | At most **one** bounded redirect per turn, delivered with `steer` inside it (`followup` fallback) | detected in SHADOW |
 
 Modes:
 
@@ -96,6 +96,14 @@ Settings → **Token economizer** (five tabs, English and Russian):
 The same data is served under the authenticated `/api/token-economizer/*` channel; the
 client bundle has no build step and uses only `react` from the Harness module loader.
 
+**Long-lived sessions.** The Web UI keeps one agent alive across many turns; DSH fires
+`agent/created` once, not once per turn. Consequently the knowledge block is frozen at
+that session's first prompt, and a newly eligible automatic tool hide waits in
+`tools.json.autoPending` until a **new** session starts (or the host restarts). This is
+deliberate: changing the prompt or the tool catalog mid-session invalidates the provider
+cache and can break an in-flight tool call. Close and reopen the session (or restart the
+host) to pick up both changes; `/economizer status` shows what is still pending.
+
 ## CLI
 
 ```text
@@ -137,7 +145,7 @@ important ones:
 | `mode` | `shadow` | `off`, `shadow`, `active` |
 | `microskillsInject` | `false` | Inject confirmed facts in ACTIVE |
 | `toolpruneMode` | `observe` | `disabled`, `observe`, `propose`, `automatic` |
-| `loopguardIntervene` | `false` | Queue one `followup` redirect per turn in ACTIVE |
+| `loopguardIntervene` | `false` | Queue one `steer` redirect per turn in ACTIVE (`followup` fallback) |
 | `loopguardJudge` | `true` | Allow the optional paid judge and, after a *stuck* verdict, the redirect writer (never in SHADOW) |
 | `priceTable` | `""` | JSON `{ "provider/model": {input, output, cacheRead, cacheWrite} }` |
 | `subagentsEnabled` | `true` | Attribute subagent usage to the root session |
@@ -157,13 +165,13 @@ npm run check:dist       # committed lib/ matches a fresh build; client parses
 Last recorded results in this checkout:
 
 ```text
-unit/integration: 228 tests, 228 pass, 0 fail
+unit/integration: 232 tests, 232 pass, 0 fail
 parity (pinned Python upstream): 43 tests, 43 pass, 0 fail
 smoke: PASS
 install smoke (isolated DSH_HOME): local and GitHub install/patch/uninstall PASS; headless boot skipped in the last drives
 ```
 
-Benchmark summary (synthetic but shipped code paths; see [docs/BENCHMARK.md](docs/BENCHMARK.md)):
+Benchmark summary (**schema-token counts and stated assumptions, not provider cost**; synthetic but shipped code paths; see [docs/BENCHMARK.md](docs/BENCHMARK.md)):
 
 * 30-tool catalog: 21 evidenced tools hidden, ~70.9% of catalog schema tokens avoided per request.
 * 12 confirmed facts: 134-token injection block, capped to 4 facts / 50 tokens under a small cap.
@@ -175,20 +183,26 @@ Benchmark summary (synthetic but shipped code paths; see [docs/BENCHMARK.md](doc
 * The paid LLM distiller ("proposer") is **not** called automatically. `envfacts` is
   deterministic; `distiller` renders facts you confirmed (or pass as candidates) and builds
   proposer prompts, but does not spend a model call. This keeps the plugin free by default.
-* The tool-pruning LLM judge, glob protection patterns, catalog-refresh actions, repository
-  map and history import are not ported. Tool pruning here is evidence-based, persists the
-  hidden set in `tools.json`, supports a durable per-project restore, and uses the DSH-native
-  `tools.restrict()` surface. The orchestration/optional tools are prunable; the file/shell/
-  analysis work surface and the human-control tools are not.
+* The tool-pruning LLM judge, catalog-refresh actions, repository map and history import
+  are not ported. Tool pruning here is evidence-based, persists the hidden set in
+  `tools.json`, supports a durable per-project restore, and uses the DSH-native
+  `tools.restrict()` surface. Name/glob protection **is** supported:
+  `toolpruneAllowlist` accepts exact names, `*`, `**` and `?` patterns such as `mcp__*`.
+  The orchestration/optional tools are prunable; the file/shell/analysis work surface and
+  the human-control tools are not.
 * The redirect is written by the model only when the paid judge returns a confident
   *stuck* verdict; a heuristic-only or ambiguous verdict uses the deterministic
   count template rather than spending a second model call.
-* **Redirects are delayed, not in-turn.** DSH exposes `agent.steer`, but this port
-  does not call it. A confirmed loop redirect is queued with the
-  public `agent.followup` and arrives after the current turn; the guard decision is still
-  made from the in-turn tool evidence, but upstream's in-turn nudge is not achieved.
-  DSH rejects a followup issued while the tool-result append is still being published, so
-  the adapter queues the call one macrotask later; a rejection is logged, never thrown.
+* **Redirect delivery is deferred by one macrotask.** DSH rejects a `steer`/`followup`
+  issued while the tool-result append is still being published, so the adapter queues it
+  with `setImmediate`. `agent.steer` is the default: it is scheduled for the next model
+  step and, in the live `0.2.2-rc.3` run, the redirect `user/message` appeared before
+  `turn/end` (after the model's last step, so it may only be consumed on the next step).
+  If `steer` is unavailable or throws, the adapter falls back to `agent.followup`, which
+  arrives after the current turn. The incident records `steer` or `followup-degraded`
+  only after that call actually returns; a refusal is `failed` and is not counted. The
+  guard decision itself is still made from in-turn tool evidence, and it never stops the
+  agent.
 * Shell edits are detected from Bash commands (`sed -i`, `perl -pi`, redirects and
   `tee`, inline Python writes, `patch`/`git apply`, `apply_patch`); a write whose
   target cannot be read counts as `(patch)` / `(script)`, as upstream does.
