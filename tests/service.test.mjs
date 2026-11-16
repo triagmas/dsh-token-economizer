@@ -1374,3 +1374,40 @@ test('overview aggregates each recent turn and budget is per session', async () 
     await rm(env.home, { recursive: true, force: true })
   }
 })
+
+test('the delete alias removes only the requested fact ids', async () => {
+  const env = await setup({ mode: 'active', microskillsInject: true })
+  try {
+    const project = await env.store.project(PROJECT)
+    const base = {
+      key: 'fact-key',
+      kind: 'command',
+      state: 'CANDIDATE',
+      text: 'The test command is pnpm test.',
+      high: false,
+      drift: false,
+      confirms: [[1, []]],
+      contradicts: [],
+      fireNum: 0,
+      fireDen: 0,
+      promotedAt: null,
+      retiredAt: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      lastUsedAt: null,
+      enabled: true,
+      source: { sessionId: 'session-1', turn: 1, evidence: ['observed command'] },
+    }
+    await project.updateSkills((file) => {
+      file.facts = [
+        { id: 'delete-1', ...base },
+        { id: 'keep-1', ...base, key: 'fact-key-keep', text: 'Lint runs with pnpm lint.' },
+      ]
+    })
+    const outcome = await env.service.skillsAction({ action: 'delete', ids: ['delete-1'] }, { sessionId: 'session-1' })
+    assert.equal(outcome.changed, 1)
+    assert.deepEqual(outcome.data.candidates.map((fact) => fact.id), ['keep-1'])
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})

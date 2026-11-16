@@ -12,7 +12,7 @@ const HELP = [
   'Usage: /economizer <command>',
   '',
   '  status                     current mode, project, counters and compatibility',
-  '  on | off                   enable observation (shadow) or turn the plugin off',
+  '  on | off                   enable in shadow (ACTIVE is kept) or turn the plugin off',
   '  mode shadow|active|off     select the operating mode (active applies changes)',
   '  report                     detailed token and mechanism report',
   '',
@@ -77,6 +77,10 @@ export function createEconomizerCommand(deps: CommandDeps) {
           case 'status':
             return success(await renderStatus(api, input))
           case 'on': {
+            const current = await api.config()
+            if (current.mode === 'active') {
+              return success('Token Economizer is already ON in ACTIVE mode. "/economizer on" does not downgrade it; use "/economizer mode shadow" to stop applying changes.')
+            }
             await api.updateSettings({ mode: 'shadow' })
             return success('Token Economizer is ON in shadow mode: it observes and reports but does not change prompts or tools.\nUse "/economizer mode active" to apply optimizations.')
           }

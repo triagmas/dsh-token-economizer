@@ -75,7 +75,7 @@ Restart the Web UI (host plugins mount at boot). Then:
 
 ```bash
 /economizer status        # what is on, what was measured
-/economizer on            # switch to SHADOW
+/economizer on            # switch to SHADOW from OFF (an ACTIVE mode is kept)
 /economizer mode active   # apply enabled mechanisms
 /economizer report        # measured vs estimated, per mechanism
 ```
@@ -108,13 +108,14 @@ host) to pick up both changes; `/economizer status` shows what is still pending.
 
 ```text
 /economizer status | on | off | mode shadow|active | report
-/economizer skills list | skills review | skills clear
-/economizer tools status | tools restore <name> | tools restore --all
+/economizer skills list | skills review | skills confirm <id> | skills reject <id> | skills clear
+/economizer tools status | tools restore [name] | tools mode observe|propose|automatic
 /economizer loops history
-/economizer config [key] [value]
+/economizer config | config set <key>=<value>
 ```
 
-`/economizer on` means SHADOW; applying changes always requires `mode active`.
+`/economizer on` means SHADOW from OFF; applying changes always requires `mode active`.
+`/economizer on` leaves an already ACTIVE configuration active; use `mode shadow` to downgrade.
 
 ## Measurement honesty
 

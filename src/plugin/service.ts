@@ -1461,14 +1461,11 @@ export class EconomizerService implements EconomizerApi {
     }
     let changed = 0
     await project.updateSkills((file) => {
-      const before = file.facts.length
       if (payload.action === 'clearCandidates') {
         file.facts = file.facts.filter((fact) => {
-          if (fact.state === 'CANDIDATE') {
-            changed += 1
-            return false
-          }
-          return true
+          if (fact.state !== 'CANDIDATE') return true
+          changed += 1
+          return false
         })
       } else if (payload.action === 'confirm') {
         for (const fact of file.facts) {
@@ -1479,14 +1476,15 @@ export class EconomizerService implements EconomizerApi {
           fact.updatedAt = new Date().toISOString()
           changed += 1
         }
-      } else if (payload.action === 'reject' || payload.action === 'delete') {
-        file.facts = file.facts.filter((fact) => !ids.has(fact.id) || ((changed += 1), false))
-      }
-      if (payload.action === 'reject' || payload.action === 'delete') {
-        // changed was incremented in the filter above
+      } else {
+        // `delete` is the historical alias for `reject`; both remove the row.
+        file.facts = file.facts.filter((fact) => {
+          if (!ids.has(fact.id)) return true
+          changed += 1
+          return false
+        })
       }
       file.updatedAt = new Date().toISOString()
-      if (payload.action !== 'confirm') void before
     })
     await this.refreshBlock(project)
     this.options.onToolsChanged?.(resolved.runtime.root)
