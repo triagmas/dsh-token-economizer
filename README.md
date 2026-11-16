@@ -15,6 +15,12 @@ the review protocol are documented in [REVIEW.md](REVIEW.md). If you are
 reviewing this repository, read that file first: the acceptance criterion is
 fidelity to the pinned upstream commit, not a general redesign.
 
+CI (`.github/workflows/ci.yml`) runs on Node 22 for every pull request and every
+push to `main`: build, typecheck, the unit suite, the committed parity vectors,
+the smoke test and `check:dist`, in that order. It needs no network beyond
+`npm ci` and no Python; the upstream checkout is only needed to regenerate the
+parity vectors locally.
+
 * No fork of DSH, no patched system packages, no MCP transport, no external server.
 * Runs in the Web UI, the TUI/CLI, and headless runs. All state is plain JSON/JSONL
   under `$DSH_HOME/token-economizer/`.
