@@ -878,6 +878,8 @@ test('disposing an agent drops its frozen knowledge block', async () => {
     assert.equal(env.service.knowledgeForSession('session-1').includes('pnpm lint'), false, 'the live session stays frozen')
 
     env.service.forgetSession('session-1')
+    // A reused session id gets its root again from the new agent's `agent/created`.
+    env.service.registerRoot('session-1', PROJECT)
     assert.match(
       env.service.knowledgeForSession('session-1'),
       /pnpm lint/,
@@ -1227,5 +1229,61 @@ test('a restarted process restores the loop-guard envelope before judging', asyn
     assert.ok(second.judgeCalls.length > 0, 'the judge is available on a cold process')
   } finally {
     await rm(first.home, { recursive: true, force: true })
+  }
+})
+
+test('forgetSession clears every per-session collection', async () => {
+  const env = await setup({
+    mode: 'active',
+    microskillsInject: true,
+    microskillsProfile: 'distiller',
+    loopguardEnabled: true,
+    loopguardIntervene: false,
+  })
+  try {
+    const session = observed('session-forget')
+    env.service.registerRoot('session-forget', PROJECT)
+    env.service.setSessionRoute('session-forget', { provider: 'deepseek', model: 'deepseek-v4' })
+    env.service.observe(session)
+    await env.service.beginSession('session-forget', PROJECT)
+    env.service.beginTurn(session, 1)
+    env.service.knowledgeForSession('session-forget')
+
+    assert.equal(env.service.sessions.has('session-forget'), true)
+    assert.equal(env.service.roots.has('session-forget'), true)
+    assert.equal(env.service.routes.has('session-forget'), true)
+    assert.equal(env.service.guards.has('session-forget'), true)
+    assert.equal(env.service.startedSessions.has('session-forget'), true)
+    assert.equal(env.service.sessionBlocks.has('session-forget'), true)
+
+    env.service.forgetSession('session-forget')
+
+    for (const collection of [
+      'sessions', 'roots', 'routes', 'guards', 'judgeUsage', 'judgeTurnUsage',
+      'pendingDecisions', 'redirectedTurns', 'appliedIncidents', 'sessionBlocks',
+    ]) {
+      assert.equal(env.service[collection].has('session-forget'), false, collection)
+    }
+    for (const collection of ['unobserved', 'startedSessions', 'judging', 'decisionDirty', 'coldLookups']) {
+      assert.equal(env.service[collection].has('session-forget'), false, collection)
+    }
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('tracked sessions and roots stay bounded', async () => {
+  const env = await setup()
+  try {
+    for (let index = 0; index < 1_200; index += 1) {
+      const id = `bounded-${index}`
+      env.service.registerRoot(id, PROJECT)
+      env.service.observe(observed(id))
+    }
+    assert.ok(env.service.roots.size <= 1_000, `roots bounded, got ${env.service.roots.size}`)
+    assert.ok(env.service.sessions.size <= 1_000, `sessions bounded, got ${env.service.sessions.size}`)
+    assert.equal(env.service.sessions.has('bounded-0'), false, 'the oldest session state is evicted')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
   }
 })

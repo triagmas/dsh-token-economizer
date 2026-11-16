@@ -222,6 +222,9 @@ class Queue {
  * Reads are async because they may need the project files; the command and the
  * routes both await them. Writes are serialized per project by the store.
  */
+/** Upper bound for the two long-lived session lookup maps; older entries are forgotten. */
+const MAX_TRACKED_SESSIONS = 1_000
+
 export class EconomizerService implements EconomizerApi {
   private readonly options: ServiceOptions
   private readonly store: Store
@@ -281,7 +284,10 @@ export class EconomizerService implements EconomizerApi {
 
   /** Register the workspace root known at agent creation, before any event arrives. */
   registerRoot(sessionId: string, root: string | null): void {
-    if (sessionId) this.roots.set(sessionId, root)
+    if (!sessionId) return
+    this.roots.delete(sessionId)
+    this.roots.set(sessionId, root)
+    this.trimTrackedSessions()
   }
 
   /**
@@ -348,9 +354,12 @@ export class EconomizerService implements EconomizerApi {
   }
 
   observe(session: ObservedSession): void {
+    // Re-insert so Map iteration order reflects the most recent observation.
+    this.sessions.delete(session.sessionId)
     this.sessions.set(session.sessionId, session)
     if (!session.projectRoot) this.unobserved.add(session.sessionId)
     else this.unobserved.delete(session.sessionId)
+    this.trimTrackedSessions()
   }
 
   beginTurn(session: ObservedSession, turn = 1): void {
@@ -964,10 +973,39 @@ export class EconomizerService implements EconomizerApi {
     return block
   }
 
-  /** Drop per-session prompt state when the Host disposes the agent. */
+  /** Drop every piece of per-session state when the Host disposes the agent. */
   forgetSession(sessionId: string): void {
+    this.sessions.delete(sessionId)
+    this.roots.delete(sessionId)
+    this.routes.delete(sessionId)
+    this.guards.delete(sessionId)
+    this.judgeUsage.delete(sessionId)
+    this.judgeTurnUsage.delete(sessionId)
+    this.unobserved.delete(sessionId)
+    this.startedSessions.delete(sessionId)
+    this.judging.delete(sessionId)
+    this.decisionDirty.delete(sessionId)
+    this.pendingDecisions.delete(sessionId)
+    this.redirectedTurns.delete(sessionId)
+    this.appliedIncidents.delete(sessionId)
     this.sessionBlocks.delete(sessionId)
     this.coldLookups.delete(sessionId)
+  }
+
+  /** Keep the session/root lookups bounded on a long-lived process. */
+  private trimTrackedSessions(): void {
+    while (this.sessions.size > MAX_TRACKED_SESSIONS) {
+      const oldest = this.sessions.keys().next().value
+      if (oldest === undefined) break
+      this.sessions.delete(oldest)
+      this.roots.delete(oldest)
+    }
+    while (this.roots.size > MAX_TRACKED_SESSIONS) {
+      const oldest = this.roots.keys().next().value
+      if (oldest === undefined) break
+      this.roots.delete(oldest)
+      this.sessions.delete(oldest)
+    }
   }
 
   private runtimeForRoot(root: string): ProjectRuntime | undefined {
