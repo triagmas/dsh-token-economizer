@@ -9,19 +9,27 @@ import type { RedactionPolicy } from './types.js'
 
 export const DEFAULT_REDACTION: RedactionPolicy = { redactSecrets: true, maxTextBytes: 4_000 }
 
+/** Redaction is best-effort and must stay bounded even for a pathological transcript tail. */
+export const MAX_REDACTION_BYTES = 256 * 1024
+
 const SECRET_KEY = /(?:api[_-]?key|apikey|secret|token|password|passwd|pwd|private[_-]?key|access[_-]?key|credential|auth[_-]?token|bearer|session[_-]?key|client[_-]?secret)/i
 
 type RedactionPattern = { name: string; re: RegExp; replacement: string; filter?: (groups: Array<string | undefined>) => boolean }
 
 const PATTERNS: RedactionPattern[] = [
-  { name: 'private-key-block', re: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, replacement: '[REDACTED PRIVATE KEY]' },
   { name: 'github-token', re: /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}\b|\bgithub_pat_[A-Za-z0-9_]{20,}\b/g, replacement: '[REDACTED GITHUB TOKEN]' },
   { name: 'aws-key', re: /\b(?:AKIA|ASIA)[0-9A-Z]{16}\b/g, replacement: '[REDACTED AWS KEY]' },
   { name: 'jwt', re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, replacement: '[REDACTED JWT]' },
+  { name: 'authorization-header', re: /\bAuthorization\s*:\s*(Basic|Token|Bearer)\s+[A-Za-z0-9._~+/=-]{6,}/gi, replacement: 'Authorization: $1 [REDACTED]' },
+  { name: 'slack-token', re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g, replacement: '[REDACTED SLACK TOKEN]' },
+  { name: 'google-api-key', re: /\bAIza[0-9A-Za-z_-]{35}\b/g, replacement: '[REDACTED GOOGLE API KEY]' },
+  { name: 'stripe-live-key', re: /\b(?:sk|rk|pk)_live_[0-9A-Za-z]{16,}\b/g, replacement: '[REDACTED STRIPE KEY]' },
+  { name: 'npm-token', re: /\bnpm_[A-Za-z0-9]{36}\b/g, replacement: '[REDACTED NPM TOKEN]' },
   { name: 'sk-key', re: /\b(?:sk|pk)-[A-Za-z0-9_-]{16,}\b/g, replacement: '[REDACTED API KEY]' },
   { name: 'bearer', re: /\bBearer\s+[A-Za-z0-9._~+/=-]{12,}/gi, replacement: 'Bearer [REDACTED]' },
   { name: 'url-credentials', re: /\b([a-z][a-z0-9+.-]*:\/\/)[^\s/@:]+:[^\s/@]+@/gi, replacement: '$1[REDACTED]@' },
-  { name: 'env-assignment', re: /\b([A-Za-z_][A-Za-z0-9_.-]{0,64})\s*[:=]\s*(["']?)[^\s"']{8,}\2/g, replacement: '$1=[REDACTED]', filter: (groups) => SECRET_KEY.test(groups[1] ?? '') },
+  { name: 'json-secret', re: /"([^"\r\n]{1,64})"\s*:\s*"([^"\r\n]{6,})"/g, replacement: '"$1": "[REDACTED]"', filter: (groups) => SECRET_KEY.test(groups[1] ?? '') },
+  { name: 'env-assignment', re: /\b([A-Za-z_][A-Za-z0-9_.-]{0,64})\s*[:=]\s*(["']?)[^\s"']{6,}\2/g, replacement: '$1=[REDACTED]', filter: (groups) => SECRET_KEY.test(groups[1] ?? '') },
   { name: 'cli-flag', re: /(--?(?:api[_-]?key|token|password|secret|access[_-]?key)[=\s]+)([^\s"']{6,})/gi, replacement: '$1[REDACTED]' },
   { name: 'anthropic-openai-key', re: /\b(?:sk-ant-[A-Za-z0-9_-]{10,}|deepseek-[A-Za-z0-9_-]{16,})\b/g, replacement: '[REDACTED API KEY]' },
 ]
@@ -37,8 +45,45 @@ export function isSensitivePath(path: string): boolean {
  * Redact secrets in a text. The `filter` escape hatch keeps patterns that
  * match ordinary assignments (e.g. `PATH=...`) from over-redacting.
  */
+/**
+ * A private-key block is scanned by delimiter rather than by a lazy `[\s\S]*?` regex:
+ * an unterminated block would otherwise make the engine retry across the whole input.
+ * A BEGIN without a matching END redacts from that BEGIN to the end of the text.
+ */
+function redactPrivateKeyBlocks(text: string): string {
+  const beginRe = /-----BEGIN [A-Z ]*PRIVATE KEY-----/g
+  const endRe = /-----END [A-Z ]*PRIVATE KEY-----/g
+  let out = ''
+  let cursor = 0
+  for (;;) {
+    beginRe.lastIndex = cursor
+    const begin = beginRe.exec(text)
+    if (!begin) break
+    endRe.lastIndex = begin.index + begin[0].length
+    const end = endRe.exec(text)
+    out += `${text.slice(cursor, begin.index)}[REDACTED PRIVATE KEY]`
+    if (!end) {
+      cursor = text.length
+      break
+    }
+    cursor = end.index + end[0].length
+  }
+  return out + text.slice(cursor)
+}
+
+/** Cut an oversized input on a character boundary before any regex runs. */
+function capForRedaction(text: string): string {
+  if (Buffer.byteLength(text, 'utf8') <= MAX_REDACTION_BYTES) return text
+  let end = Math.min(text.length, MAX_REDACTION_BYTES)
+  while (end > 0 && Buffer.byteLength(text.slice(0, end), 'utf8') > MAX_REDACTION_BYTES) end -= 1
+  return text.slice(0, end)
+}
+
+/** Redact secrets in a text. The `filter` escape hatch keeps patterns that
+ * match ordinary assignments (e.g. `PATH=...`) from over-redacting.
+ */
 export function redactSecrets(text: string): string {
-  let result = text
+  let result = redactPrivateKeyBlocks(capForRedaction(String(text ?? '')))
   for (const pattern of PATTERNS) {
     result = result.replace(pattern.re, (...match: unknown[]) => {
       const groups = match as Array<string | undefined>
@@ -59,7 +104,8 @@ export function stripControlCharacters(text: string): string {
 
 /** Redact, strip controls, and truncate to a byte budget on a character boundary. */
 export function sanitizeText(text: string, policy: RedactionPolicy = DEFAULT_REDACTION): string {
-  const redacted = policy.redactSecrets ? redactSecrets(String(text ?? '')) : String(text ?? '')
+  const raw = capForRedaction(String(text ?? ''))
+  const redacted = policy.redactSecrets ? redactSecrets(raw) : raw
   const clean = stripControlCharacters(redacted)
   if (Buffer.byteLength(clean, 'utf8') <= policy.maxTextBytes) return clean
   let end = Math.min(clean.length, policy.maxTextBytes)
