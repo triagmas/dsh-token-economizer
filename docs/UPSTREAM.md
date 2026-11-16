@@ -110,7 +110,20 @@ session concept, matching upstream.
    gates so a mis-set mode cannot rewrite a prompt, hide tools, or insert a
    redirect without a second deliberate switch. This is not an upstream
    equivalence and is recorded here as a deviation.
-6. **Not ported, by scope.** The following upstream components are deliberately
+6. **Strict judge verdict (safety deviation).** Upstream's `llm_stuck_judge`
+   applies Python `bool()` to the JSON `stuck` field, so a model reply such as
+   `{"stuck": "false"}` or `{"stuck": 1}` is truthy and can authorize a paid
+   redirect. This port accepts only a JSON boolean and treats every other type
+   as ambiguous, falling back to the free heuristic/envelope path. The
+   loopguard parity vectors feed already-typed verdicts into `assessAbort`, so
+   raw judge JSON is deliberately excluded from that comparison; the strict
+   parser is covered by unit and parity-guard tests instead.
+7. **Sanitized written redirect (safety deviation).** Upstream returns the
+   nudge writer's reply verbatim. This port delivers it through `agent.steer()`,
+   so links, markdown fence markers and control sequences are stripped, the
+   result is capped at 1200 characters, and an empty result falls back to the
+   deterministic `nudgeText` count template.
+8. **Not ported, by scope.** The following upstream components are deliberately
    absent rather than silently emulated:
    * `microskills`: the paid proposer is not called automatically (its digest,
      extractor and prompts are ported; the caller may pass proposed facts).
@@ -143,6 +156,34 @@ session concept, matching upstream.
      `probe`, and `fold` commands, and non-DSH agent adapters.
    This is a DSH plugin for the three mechanisms, not a line-for-line port of
    the upstream multi-agent product.
+
+## Upstream changes after the pinned revision
+
+The vendored checkout was fetched on 2026-11-16. `origin/main` had advanced from
+the pinned `7042ea89dd5e5ecbc67ad865ad6e256e61be8bf0` to
+`583fff78bf504b59d542f953c31e87d01d02ab42` (plus merge commits listed by
+`git log 7042ea8..origin/main`). **The pin did not move:** the parity vectors and
+the file headers still describe `7042ea8`, and everything below is an explicit
+post-pin review, not an upstream-equivalence claim.
+
+| Upstream change | Behavioural? | Ported logic affected? | Decision |
+| --- | --- | --- | --- |
+| `microskills/distiller.py`: `parse_payload` type guards (`#198`) | Yes, malformed proposer JSON can no longer reach the regex compiler | Yes, `src/microskills/distiller.ts::parsePayload` | **Ported.** Strings are required for `name`, `pattern`, `id` and the four detector fields; `detector` must be a non-empty object and `cite` a list or absent. Unit test added; parity vectors remain pinned. |
+| `microskills/distiller.py`: `_rx` rejects a non-string pattern (`#198`) | Yes, avoids a Python `TypeError` | Indirectly, the port's `compilePattern` is the equivalent | Not ported as a separate change. `parsePayload` now rejects non-string fields before they reach the compiler; malformed values already persisted in an older state file remain outside this scoped fix. |
+| `microskills/distiller.py`: `load_calls` skips non-object JSON lines and requires a string tool-use id | Yes, hardening against a corrupt transcript | Yes, the port's transcript loader reads the same shape | Not ported; the port does not read agent transcripts (the DSH observer supplies calls), so there is no equivalent loader to harden. B3 was scoped to `parse_payload`. |
+| `microskills/distiller.py`, `envfacts.py`, `lifecycle.py`, `stage.py`, `__init__.py`: manual forgetting (`#160`) and atomic mechanism writes | Yes, new user-facing feature plus durability | No shipped equivalent; this port has no `forget`/`unforget` command or forgotten-id admission rule | Not ported. Adding it would be a feature port, not a bug fix; recorded here and in `CHANGELOG.md`. |
+| `microskills/distiller.py`, `envfacts.py`: `write_json_atomic` for mechanism state | Yes on Windows, avoids a half-written document | The port already writes its state through atomic helpers | Not ported; covered by the port's own storage layer. |
+| `loopguard/shell_edits.py`: wrapper options (`sudo -u`, `env -u`, `timeout 60`, `nice -n`, ...) | Yes, fewer false shell-edit detections | Yes, `src/loopguard/shell-edits.ts` | Not ported; outside the B3 scope and needs its own loopguard parity vectors. |
+| `loopguard/state.py`: multi-file patch `paths` are all counted | Yes, spiral edit tracking sees every patched file | Yes, `src/loopguard/state.ts` | Not ported; same reason. |
+| `loopguard/turn.py`: Python interpreter flags before `-m pytest` / `runtests.py` | Yes, verification detection recognises more invocations | Yes, `src/loopguard/turn.ts` | Not ported; same reason. |
+| `plugin/config.py`: `local_model`, `local_roles`, `local_judge_confidence` | Yes, new opt-in on-device judge/proposer route | No; DSH uses `ctx.llm.stream()` and has no local Apple FM route | Not ported. New configuration without a DSH capability is dead surface. |
+| `plugin/controller.py`: launcher retry on `SessionStart`/`UserPromptSubmit`; local judge may run while the host CLI is paused | Yes, host-specific lifecycle/local-model behaviour | No; the DSH adapter has no launcher or CLI-session pause | Not ported. |
+| `plugin/fold.py`: local proposer runner; `te microskills forget` command | Yes, host-specific proposer routing and a new CLI command | No shipped equivalent | Not ported; same feature-scope reason as `#160`. |
+| `pricing.py`: new Gemini model rows | Yes for those model ids | The port has its own frozen pricing table | Not ported. Pricing is intentionally frozen in this review; new rows need their own source check and vectors. |
+| `microskills/README.md`, `microskills/__init__.py` | No runtime behaviour | No | Documentation/export changes only. |
+
+The upstream repository also added non-target files (Antigravity, CI, docs) in the
+same range; they are outside the requested diff scope and are not analysed here.
 
 ## Parity tests
 

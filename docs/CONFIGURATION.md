@@ -99,8 +99,9 @@ from the pinned upstream `pricing.py` port (`src/pricing/weights.ts`).
 /economizer config set <key>=<value>
 ```
 
-`on` enables SHADOW observation. Applying changes requires `mode active` plus
-the relevant mechanism switch; this is intentional.
+`on` enables SHADOW observation and leaves an already ACTIVE configuration
+active. Applying changes requires `mode active` plus the relevant mechanism
+switch; this is intentional.
 
 ## Environment
 

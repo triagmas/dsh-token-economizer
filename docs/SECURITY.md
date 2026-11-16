@@ -49,9 +49,15 @@ results.
 * All persistence is under `<DSH_HOME>/token-economizer/`.
 * Nothing is written into the workspace, the DSH installation, other profiles,
   or other plugins' data.
-* Writes are atomic; concurrent processes are serialized with lock files.
+* Writes are atomic. An update takes a lock file and re-reads the current
+  `skills.json`/`tools.json` under that lock before applying the change, so
+  concurrent DSH sessions do not overwrite each other's fields with a stale
+  in-process cache.
 * JSONL logs rotate at a configurable byte cap; retention pruning deletes old
   metrics rows.
+* A JSON file that cannot be parsed is moved to `<name>.corrupt-<timestamp>`
+  and left on disk; the plugin continues with defaults instead of overwriting
+  the damaged file silently.
 * File permissions follow the user's umask; the directory is created by the
   plugin inside the user's home.
 
@@ -97,7 +103,11 @@ Learned facts are untrusted text that originated in tool output. They are:
   checks (a failing command plus a corrected one, a resolved error class, an
   environment fact).
 
-They cannot grant tools, change policy, or disable the guard.
+A written loop redirect is model text that will be delivered to the agent, so
+links, markdown fence markers and ANSI/C0 controls are stripped, the rest is
+capped at 1200 characters, and an answer that sanitizes to nothing is replaced
+by the deterministic count template. Learned facts and redirects cannot grant
+tools, change policy, or disable the guard.
 
 ## Disable and uninstall
 
@@ -112,5 +122,6 @@ They cannot grant tools, change policy, or disable the guard.
 
 ## Reporting
 
-Security issues should be reported privately to the plugin maintainer. Do not
-include real credentials in reports; redact them first.
+See the repository-root [SECURITY.md](../SECURITY.md) for the private reporting
+channel (GitHub Security Advisories → **Report a vulnerability**), what must not
+be published, and the best-effort response expectations.

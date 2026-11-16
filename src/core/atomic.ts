@@ -38,14 +38,65 @@ export async function writeJsonAtomic(path: string, value: unknown): Promise<voi
   }
 }
 
-/** Read JSON, returning `fallback` for a missing or corrupt file. */
-export async function readJsonSafe<T>(path: string, fallback: T): Promise<T> {
+/**
+ * Write JSONL atomically: one JSON object per line, or an empty file for no rows.
+ * Compaction must never leave a pretty-printed JSON array in a `.jsonl` file.
+ */
+export async function writeJsonlAtomic(path: string, rows: readonly unknown[]): Promise<void> {
+  await ensureDir(dirname(path))
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  const text = rows.length ? `${rows.map((row) => JSON.stringify(row)).join('\n')}\n` : ''
+  await writeFile(tmp, text, { encoding: 'utf8', mode: 0o600 })
   try {
-    const text = await readFile(path, 'utf8')
-    if (text.trim() === '') return fallback
+    await rename(tmp, path)
+  } catch (error) {
+    // Windows cannot always replace an open destination; retry once after unlink.
+    await unlink(path).catch(() => undefined)
+    try {
+      await rename(tmp, path)
+    } catch (inner) {
+      await unlink(tmp).catch(() => undefined)
+      throw inner
+    }
+  }
+}
+
+/**
+ * Move an unreadable JSON file aside before any later save replaces it.
+ *
+ * The caller still gets its defaults, so a damaged file never blocks the agent,
+ * but the original bytes remain available for inspection. Failure to move the
+ * file is ignored: quarantine is evidence preservation, not a precondition.
+ */
+async function quarantineCorrupt(path: string): Promise<void> {
+  const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+  const target = `${path}.corrupt-${stamp}`
+  try {
+    await rename(path, target)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return
+    // A same-millisecond collision should not leave the corrupt file in place.
+    await rename(path, `${target}-${process.pid}`).catch(() => undefined)
+  }
+}
+
+/** Read JSON, returning `fallback` for a missing file or after quarantining a corrupt one. */
+export async function readJsonSafe<T>(path: string, fallback: T): Promise<T> {
+  let text: string
+  try {
+    text = await readFile(path, 'utf8')
+  } catch {
+    return fallback
+  }
+  if (text.trim() === '') {
+    await quarantineCorrupt(path)
+    return fallback
+  }
+  try {
     const parsed = JSON.parse(text) as T
     return parsed ?? fallback
   } catch {
+    await quarantineCorrupt(path)
     return fallback
   }
 }

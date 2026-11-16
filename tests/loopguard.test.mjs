@@ -294,6 +294,21 @@ test('a redirect written by the model is bounded by loopguardNudgeMaxTokens', as
   assert.equal(boundNudge('a'.repeat(500), 10).length, 40)
 })
 
+test('a written redirect that is only a link falls back to the count template', async () => {
+  const engine = makeEngine(
+    {},
+    {
+      judgeFn: judgeReplies(['{"stuck": true, "confidence": 0.9, "reason": "loop"}']),
+      nudgeWriterFn: async () => 'https://example.com/only',
+    },
+  )
+  feedSpiral(engine, 4)
+  const decision = await engine.decide()
+  assert.equal(decision.action, 'redirect')
+  assert.match(decision.nudge, /^Process check/)
+  assert.doesNotMatch(decision.nudge, /https?:|example\.com/)
+})
+
 test('the heuristic fallback never pays for a written redirect', async () => {
   let writerCalls = 0
   const engine = makeEngine(
@@ -474,13 +489,20 @@ test('judge and writer parsers are strict and bounded', () => {
     confidence: 1,
     reason: 'ok',
   })
-  // Python bool() coercion: the string "false" is true.
-  assert.equal(parseJudgeReply('{"stuck": "false"}').stuck, true)
+  // Strict booleans: Python bool() would read the string "false" as stuck.
+  assert.equal(parseJudgeReply('{"stuck": "false"}').stuck, null)
+  assert.equal(parseJudgeReply('{"stuck": 1}').stuck, null)
+  assert.equal(parseJudgeReply('{"stuck": "true"}').stuck, null)
   assert.equal(parseJudgeReply('{"stuck": null, "confidence": -3}').confidence, 0)
   assert.equal(parseJudgeReply('{"stuck": true, "reason": "' + 'x'.repeat(500) + '"}').reason.length, 160)
   assert.equal(parseNudgeReply('  hello  '), 'hello')
   assert.equal(parseNudgeReply('x'.repeat(5000)).length, 1200)
   assert.equal(parseNudgeReply('   '), '')
+  // A redirect is plain text: links, fence markers and control bytes must not reach the steer.
+  assert.equal(parseNudgeReply('See https://example.com/a and www.example.org/b now'), 'See and now')
+  assert.equal(parseNudgeReply('```bash\npnpm test\n```'), 'pnpm test')
+  assert.equal(parseNudgeReply('a\u0000b\u0007c\u001b[31md'), 'abcd')
+  assert.equal(parseNudgeReply('https://example.com/only'), '')
 })
 
 test('a level preset owns judge confidence unless the operator changes the default', () => {

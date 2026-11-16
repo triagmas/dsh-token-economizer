@@ -91,7 +91,9 @@ projects/<projectId>/loops.jsonl    loop incidents (rotated)
 two checkouts with the same directory name never share knowledge. Writes are
 atomic (temp file + rename), JSONL files rotate at a configurable byte cap, and
 every business file carries `schemaVersion`. A newer schema fails closed for
-that mechanism instead of deleting or guessing at user data.
+that mechanism instead of deleting or guessing at user data. A JSON file that
+cannot be parsed is renamed to `<name>.corrupt-<timestamp>` before defaults are
+returned, so the next save cannot silently destroy the original bytes.
 
 ### 4. Management UI
 

@@ -354,9 +354,44 @@ test('micro-skill confirmation, rejection and clearing mutate only the selected 
   }
 })
 
+test('settings expose and enforce the schema ranges', async () => {
+  const env = await setup()
+  try {
+    const settings = await env.service.settings()
+    const byKey = new Map(settings.fields.map((field) => [field.key, field]))
+    const expected = {
+      microskillsMaxFacts: { min: 0, max: 50, step: 1 },
+      loopguardConfidence: { min: 0.5, max: 1, step: 0.01 },
+      maxMetricsBytes: { min: 262144, max: 268435456, step: 262144 },
+      toolpruneQuietMinutes: { min: 0, max: 10080, step: 1 },
+    }
+    for (const [key, range] of Object.entries(expected)) {
+      const field = byKey.get(key)
+      assert.ok(field, key)
+      assert.equal(field.min, range.min, `${key} min`)
+      assert.equal(field.max, range.max, `${key} max`)
+      assert.equal(field.step, range.step, `${key} step`)
+    }
+
+    await assert.rejects(() => env.service.updateSettings({ microskillsMaxFacts: 51 }), /between 0 and 50/)
+    await assert.rejects(() => env.service.updateSettings({ loopguardConfidence: 0.4 }), /between 0.5 and 1/)
+    await assert.rejects(() => env.service.updateSettings({ maxMetricsBytes: 1 }), /between 262144 and 268435456/)
+    await assert.rejects(() => env.service.updateSettings({ microskillsMaxFacts: 1.5 }), /integer/)
+    assert.equal(env.configWrites.length, 0, 'invalid patches are not written')
+    await env.service.updateSettings({ microskillsMaxFacts: 50 })
+    assert.equal(env.configWrites.length, 1, 'a boundary value is accepted')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
 test('settings validation rejects unknown keys, bad enums and bad types', async () => {
   const env = await setup()
   try {
+    for (const key of ['constructor', 'toString', '__proto__']) {
+      const patch = JSON.parse(`{"${key}": 1}`)
+      await assert.rejects(() => env.service.updateSettings(patch), /Unknown configuration key/, key)
+    }
     await assert.rejects(() => env.service.updateSettings({ nope: 1 }), /Unknown configuration key/)
     await assert.rejects(() => env.service.updateSettings({ mode: 'sometimes' }), /must be one of/)
     await assert.rejects(() => env.service.updateSettings({ microskillsEnabled: 'yes' }), /must be a boolean/)
@@ -878,6 +913,8 @@ test('disposing an agent drops its frozen knowledge block', async () => {
     assert.equal(env.service.knowledgeForSession('session-1').includes('pnpm lint'), false, 'the live session stays frozen')
 
     env.service.forgetSession('session-1')
+    // A reused session id gets its root again from the new agent's `agent/created`.
+    env.service.registerRoot('session-1', PROJECT)
     assert.match(
       env.service.knowledgeForSession('session-1'),
       /pnpm lint/,
@@ -1059,6 +1096,100 @@ test('the quiet period holds a pending hide until the project has been idle', as
   }
 })
 
+test('an allowlist entry wins over a pending automatic hide', async () => {
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
+  })
+  try {
+    await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    let project = await env.store.project(PROJECT)
+    let tools = await project.loadTools()
+    assert.ok(tools.autoPending?.items.includes('rare_tool'), 'the hide is pending first')
+
+    await env.service.updateSettings({ toolpruneAllowlist: ['rare_tool'] })
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+
+    assert.deepEqual(await env.service.denySetForSession('session-2'), [], 'an allowlisted pending tool is not hidden')
+    project = await env.store.project(PROJECT)
+    tools = await project.loadTools()
+    assert.equal(tools.pruned.includes('rare_tool'), false)
+    assert.equal(tools.autoPending, null)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('denySetForSession re-reads tools before clearing an allowlisted hide', async () => {
+  const env = await setup({ mode: 'active', toolpruneMode: 'automatic', toolpruneAllowlist: ['rare_tool'] })
+  try {
+    const project = await env.store.project(PROJECT)
+    await project.updateTools((file) => {
+      file.tools.rare_tool = {
+        name: 'rare_tool',
+        descriptionTokens: 900,
+        calls: 0,
+        successes: 0,
+        failures: 0,
+        sessions: 0,
+        sessionsAvailable: 3,
+        unusedSessions: 3,
+        unusedPrompts: 1,
+        lastUsedAt: null,
+        lastUsedSeq: null,
+        pruned: true,
+        pruneReason: 'evidence',
+        protected: false,
+        allowlisted: true,
+        scoped: false,
+      }
+      file.pruned = ['rare_tool']
+    })
+
+    const other = new Store({ DSH_HOME: env.home })
+    const otherProject = await other.project(PROJECT)
+    await otherProject.updateTools((file) => {
+      file.tools.rare_tool.unusedPrompts = 42
+    })
+
+    env.service.registerRoot('session-4', PROJECT)
+    assert.deepEqual(await env.service.denySetForSession('session-4'), [])
+    const persisted = await new Store({ DSH_HOME: env.home }).project(PROJECT)
+    assert.equal((await persisted.loadTools()).tools.rare_tool.unusedPrompts, 42)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('adding a hidden tool to the allowlist returns it immediately', async () => {
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
+  })
+  try {
+    await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+    assert.ok((await env.service.denySetForSession('session-2')).includes('rare_tool'), 'hidden before the allowlist')
+
+    await env.service.updateSettings({ toolpruneAllowlist: ['rare_tool'] })
+    assert.deepEqual(await env.service.denySetForSession('session-2'), [], 'allowlist wins over an applied hide')
+    const project = await env.store.project(PROJECT)
+    const tools = await project.loadTools()
+    assert.equal(tools.pruned.includes('rare_tool'), false, 'the persisted hide is removed')
+    assert.equal(tools.tools.rare_tool.pruned, false, 'the row flag is cleared too')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
 test('a long-lived session cannot apply a hidden set discovered mid-session', async () => {
   const env = await setup({
     mode: 'active',
@@ -1174,5 +1305,154 @@ test('a restarted process restores the loop-guard envelope before judging', asyn
     assert.ok(second.judgeCalls.length > 0, 'the judge is available on a cold process')
   } finally {
     await rm(first.home, { recursive: true, force: true })
+  }
+})
+
+test('forgetSession clears every per-session collection', async () => {
+  const env = await setup({
+    mode: 'active',
+    microskillsInject: true,
+    microskillsProfile: 'distiller',
+    loopguardEnabled: true,
+    loopguardIntervene: false,
+  })
+  try {
+    const session = observed('session-forget')
+    env.service.registerRoot('session-forget', PROJECT)
+    env.service.setSessionRoute('session-forget', { provider: 'deepseek', model: 'deepseek-v4' })
+    env.service.observe(session)
+    await env.service.beginSession('session-forget', PROJECT)
+    env.service.beginTurn(session, 1)
+    env.service.knowledgeForSession('session-forget')
+
+    assert.equal(env.service.sessions.has('session-forget'), true)
+    assert.equal(env.service.roots.has('session-forget'), true)
+    assert.equal(env.service.routes.has('session-forget'), true)
+    assert.equal(env.service.guards.has('session-forget'), true)
+    assert.equal(env.service.startedSessions.has('session-forget'), true)
+    assert.equal(env.service.sessionBlocks.has('session-forget'), true)
+
+    env.service.forgetSession('session-forget')
+
+    for (const collection of [
+      'sessions', 'roots', 'routes', 'guards', 'judgeUsage', 'judgeTurnUsage',
+      'pendingDecisions', 'redirectedTurns', 'appliedIncidents', 'sessionBlocks',
+    ]) {
+      assert.equal(env.service[collection].has('session-forget'), false, collection)
+    }
+    for (const collection of ['unobserved', 'startedSessions', 'judging', 'decisionDirty', 'coldLookups']) {
+      assert.equal(env.service[collection].has('session-forget'), false, collection)
+    }
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('tracked sessions and roots stay bounded', async () => {
+  const env = await setup()
+  try {
+    for (let index = 0; index < 1_200; index += 1) {
+      const id = `bounded-${index}`
+      env.service.registerRoot(id, PROJECT)
+      env.service.observe(observed(id))
+    }
+    assert.ok(env.service.roots.size <= 1_000, `roots bounded, got ${env.service.roots.size}`)
+    assert.ok(env.service.sessions.size <= 1_000, `sessions bounded, got ${env.service.sessions.size}`)
+    assert.equal(env.service.sessions.has('bounded-0'), false, 'the oldest session state is evicted')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('overview aggregates each recent turn and budget is per session', async () => {
+  const env = await setup({
+    priceTable: JSON.stringify({ 'openai/gpt-5.4': { input: 1, output: 4, cacheRead: 0.1, cacheWrite: 1.25 } }),
+  })
+  try {
+    await finishTurn(env.service, {
+      turn: 1,
+      calls: [
+        call('edit', { path: '/work/economizer-project/a.ts' }),
+        call('bash', { command: 'pnpm test' }, true, 'FAILED'),
+      ],
+    })
+    const project = await env.store.project(PROJECT)
+    const projectId = project.meta.projectId
+    const usage = (tokens) => ({
+      inputTokens: tokens, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, totalTokens: tokens,
+    })
+    const row = (sessionId, at, kind, extra = {}) => ({
+      schemaVersion: SCHEMA_VERSION,
+      at,
+      sessionId,
+      rootSessionId: sessionId,
+      delegationDepth: 0,
+      isSubagent: false,
+      projectId,
+      kind,
+      ...extra,
+    })
+    await project.appendMetrics([
+      row('session-1', '2026-01-02T00:00:00.000Z', 'plugin', { pluginUsage: usage(100) }),
+      row('session-1', '2026-01-02T00:00:00.000Z', 'turn-end'),
+      row('session-1', '2026-01-02T00:01:00.000Z', 'plugin', { pluginUsage: usage(30) }),
+      row('session-1', '2026-01-02T00:01:00.000Z', 'turn-end'),
+      row('session-2', '2026-01-02T00:02:00.000Z', 'plugin', { pluginUsage: usage(500) }),
+      row('session-2', '2026-01-02T00:02:00.000Z', 'turn-end'),
+    ], 1_000_000)
+
+    const overview = await env.service.overview({ sessionId: 'session-1' })
+    const turn = overview.recent.find((point) => point.at === '2026-01-01T00:01:00.000Z')
+    assert.ok(turn, 'the finished turn has one aggregated point')
+    assert.equal(turn.modelRequests, 1)
+    assert.equal(turn.toolCalls, 2, 'both tool calls are counted on the same point')
+    assert.equal(turn.toolErrors, 1)
+    assert.ok(turn.effectiveTokens > 0, 'effective tokens are aggregated, not null')
+    assert.ok(turn.costUsd > 0, 'configured prices produce a per-turn cost')
+    assert.equal(overview.recent.at(-1).at, '2026-01-02T00:02:00.000Z')
+
+    const status = await env.service.status({ sessionId: 'session-1' })
+    assert.equal(status.budget.sessionTokens, 130, 'only this session counts toward the session budget')
+    assert.equal(status.budget.turnTokens, 30, 'the last turn of this session, not another session')
+    assert.equal(status.budget.overheadTokens, 630, 'project overhead remains visible separately')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('the delete alias removes only the requested fact ids', async () => {
+  const env = await setup({ mode: 'active', microskillsInject: true })
+  try {
+    const project = await env.store.project(PROJECT)
+    const base = {
+      key: 'fact-key',
+      kind: 'command',
+      state: 'CANDIDATE',
+      text: 'The test command is pnpm test.',
+      high: false,
+      drift: false,
+      confirms: [[1, []]],
+      contradicts: [],
+      fireNum: 0,
+      fireDen: 0,
+      promotedAt: null,
+      retiredAt: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      lastUsedAt: null,
+      enabled: true,
+      source: { sessionId: 'session-1', turn: 1, evidence: ['observed command'] },
+    }
+    await project.updateSkills((file) => {
+      file.facts = [
+        { id: 'delete-1', ...base },
+        { id: 'keep-1', ...base, key: 'fact-key-keep', text: 'Lint runs with pnpm lint.' },
+      ]
+    })
+    const outcome = await env.service.skillsAction({ action: 'delete', ids: ['delete-1'] }, { sessionId: 'session-1' })
+    assert.equal(outcome.changed, 1)
+    assert.deepEqual(outcome.data.candidates.map((fact) => fact.id), ['keep-1'])
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
   }
 })

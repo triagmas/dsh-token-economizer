@@ -139,6 +139,35 @@ function isMode(value: unknown): value is WireMode {
   return value === 'off' || value === 'shadow' || value === 'active'
 }
 
+/** Reject a cross-origin request and any POST that is not JSON before it reaches the service. */
+function guardRequest(request: FetchRequestLike): Response | null {
+  const method = (request.method ?? 'GET').toUpperCase()
+  if (method === 'POST') {
+    const contentType = request.headers.get('content-type') ?? ''
+    const mediaType = contentType.split(';', 1)[0]?.trim().toLowerCase() ?? ''
+    if (mediaType !== 'application/json') {
+      return failure('UNSUPPORTED_MEDIA_TYPE', 'Content-Type must be application/json.', 415)
+    }
+  }
+  const origin = request.headers.get('origin')
+  if (origin !== null) {
+    let originHost: string
+    try {
+      originHost = new URL(origin).host
+    } catch {
+      return failure('FORBIDDEN', 'Cross-origin request rejected.', 403)
+    }
+    let requestHost: string
+    try {
+      requestHost = new URL(request.url).host
+    } catch {
+      return failure('FORBIDDEN', 'Cross-origin request rejected.', 403)
+    }
+    if (originHost !== requestHost) return failure('FORBIDDEN', 'Cross-origin request rejected.', 403)
+  }
+  return null
+}
+
 /** Build the exact route table; exported for tests without a live Harness. */
 export function createRoutes(api: EconomizerApi): Array<{
   path: string
@@ -157,6 +186,8 @@ export function createRoutes(api: EconomizerApi): Array<{
     ...(buffered ? { requestBody: 'buffered' as const } : {}),
     async fetch(request: FetchRequestLike): Promise<Response> {
       try {
+        const blocked = guardRequest(request)
+        if (blocked) return blocked
         return await handler(new URL(request.url), request)
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)

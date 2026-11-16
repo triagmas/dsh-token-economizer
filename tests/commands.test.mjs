@@ -213,3 +213,14 @@ test('config prints resolved values and persists valid typed values', async () =
   assert.equal((await invoke(command, 'config set unknown=1')).kind, 'error')
   assert.equal((await invoke(command, 'config set microskillsInject=maybe')).kind, 'error')
 })
+
+test('on never downgrades an active configuration to shadow', async () => {
+  const api = makeApi()
+  api.config = () => ({ ...settings.config, mode: 'active' })
+  const command = createEconomizerCommand({ api })
+  const result = await invoke(command, 'on')
+  assert.equal(result.kind, 'success')
+  assert.match(result.text, /ACTIVE/)
+  assert.doesNotMatch(result.text, /is ON in shadow/)
+  assert.equal(api.updates.length, 0, 'an explicit active choice is not rewritten by on')
+})

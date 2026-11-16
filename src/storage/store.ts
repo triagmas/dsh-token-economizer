@@ -26,6 +26,7 @@ import {
   rotateJsonl,
   withFileLock,
   writeJsonAtomic,
+  writeJsonlAtomic,
 } from '../core/atomic.js'
 import { canonicalPath, dataRoot, projectIdForRoot, projectDir } from '../core/paths.js'
 import type { LoopIncident, MetricRecord, ProjectMeta, StoredFact, ToolStat, UsageCounts } from '../core/types.js'
@@ -156,25 +157,31 @@ export class ProjectStore {
     return this.path('loopguard.json')
   }
 
-  async loadSkills(): Promise<SkillsFile> {
-    if (this.skillsCache) return this.skillsCache
+  private async readSkillsFile(): Promise<SkillsFile> {
     const raw = await readJsonSafe<SkillsFile>(this.path('skills.json'), structuredClone(EMPTY_SKILLS))
     const file = migrateSkills({ ...EMPTY_SKILLS, ...raw, schemaVersion: raw.schemaVersion ?? SCHEMA_VERSION })
     file.facts = Array.isArray(file.facts) ? file.facts : []
+    return file
+  }
+
+  async loadSkills(): Promise<SkillsFile> {
+    if (this.skillsCache) return this.skillsCache
+    const file = await this.readSkillsFile()
     this.skillsCache = file
     return file
   }
 
   async saveSkills(file: SkillsFile): Promise<void> {
-    this.skillsCache = file
     await writeJsonAtomic(this.path('skills.json'), file)
+    this.skillsCache = file
   }
 
   /** Serialize a read-modify-write cycle on skills.json (in-process + cross-process). */
   async updateSkills<T>(fn: (file: SkillsFile) => Promise<T> | T): Promise<T> {
     return this.skillsMutex.run(async () => {
-      const file = await this.loadSkills()
       return withFileLock(this.path('skills.json'), async () => {
+        // Another process may have written while this instance held a stale cache.
+        const file = await this.readSkillsFile()
         const result = await fn(file)
         file.updatedAt = nowIso()
         await this.saveSkills(file)
@@ -183,25 +190,30 @@ export class ProjectStore {
     })
   }
 
-  async loadTools(): Promise<ToolsFile> {
-    if (this.toolsCache) return this.toolsCache
+  private async readToolsFile(): Promise<ToolsFile> {
     const raw = await readJsonSafe<ToolsFile>(this.path('tools.json'), structuredClone(EMPTY_TOOLS))
     const file = migrateTools({ ...EMPTY_TOOLS, ...raw, schemaVersion: raw.schemaVersion ?? SCHEMA_VERSION })
     file.tools = file.tools && typeof file.tools === 'object' ? file.tools : {}
     file.pruned = Array.isArray(file.pruned) ? file.pruned : []
+    return file
+  }
+
+  async loadTools(): Promise<ToolsFile> {
+    if (this.toolsCache) return this.toolsCache
+    const file = await this.readToolsFile()
     this.toolsCache = file
     return file
   }
 
   async saveTools(file: ToolsFile): Promise<void> {
-    this.toolsCache = file
     await writeJsonAtomic(this.path('tools.json'), file)
+    this.toolsCache = file
   }
 
   async updateTools<T>(fn: (file: ToolsFile) => Promise<T> | T): Promise<T> {
     return this.toolsMutex.run(async () => {
-      const file = await this.loadTools()
       return withFileLock(this.path('tools.json'), async () => {
+        const file = await this.readToolsFile()
         const result = await fn(file)
         file.updatedAt = nowIso()
         await this.saveTools(file)
@@ -235,7 +247,7 @@ export class ProjectStore {
 
   /** Remove every recorded loop incident for this project. */
   async clearLoops(): Promise<void> {
-    await writeJsonAtomic(this.loopsPath, [])
+    await writeJsonlAtomic(this.loopsPath, [])
   }
 
   async appendLoop(incident: LoopIncident, maxBytes: number): Promise<void> {
@@ -282,12 +294,8 @@ export class ProjectStore {
       return !Number.isFinite(time) || time >= cutoff
     })
     if (kept.length !== rows.length) {
-      const tmp = `${this.metricsPath}.compact`
-      await writeJsonAtomic(tmp, kept)
-      await rotateJsonl(this.metricsPath).catch(() => undefined)
-      await writeJsonAtomic(this.metricsPath, kept)
-      const { unlink } = await import('node:fs/promises')
-      await unlink(tmp).catch(() => undefined)
+      // One JSON object per line, written beside the target and renamed atomically.
+      await writeJsonlAtomic(this.metricsPath, kept)
     }
     try {
       const info = await stat(this.metricsPath)

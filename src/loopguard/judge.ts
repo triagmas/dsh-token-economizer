@@ -114,8 +114,9 @@ function neverAbortedSignal(): AbortSignal {
  *
  * Upstream searches for `{.*}` (dotall, GREEDY -- the last closing brace wins), then reads the
  * object field by field; a malformed object leaves `{stuck: null, confidence: 0, reason: ""}`.
- * `stuck` keeps Python's `bool()` coercion: any non-null JSON value other than `false`/`0`/`""`
- * is "stuck", so a model that answers the string "false" is still read as stuck=true.
+ * SAFETY DEVIATION: upstream applies Python's `bool()` to `stuck`, so the string "false" (or
+ * the number `1`) would authorize an intervention. This parser accepts only a JSON boolean;
+ * every other type is ambiguous (`null`), which fails open to the free heuristic/envelope path.
  */
 export function parseJudgeReply(raw: string | null | undefined): JudgeVerdict {
   const verdict: JudgeVerdict = { stuck: null, confidence: 0, reason: '' }
@@ -130,9 +131,7 @@ export function parseJudgeReply(raw: string | null | undefined): JudgeVerdict {
   }
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return verdict
   const record = obj as Record<string, unknown>
-  if ('stuck' in record && record.stuck !== null && record.stuck !== undefined) {
-    verdict.stuck = Boolean(record.stuck)
-  }
+  if (typeof record.stuck === 'boolean') verdict.stuck = record.stuck
   try {
     verdict.confidence = clamp01(Number(record.confidence ?? 0) || 0)
   } catch {
@@ -147,16 +146,35 @@ export function parseJudgeReply(raw: string | null | undefined): JudgeVerdict {
 }
 
 /**
- * Strict parser for the redirect writer's reply (`llm_nudge_writer`, judge.py:96-102): plain
- * text, trimmed and capped at 1200 characters. Empty on a blank answer.
+ * Strict parser for the redirect writer's reply (`llm_nudge_writer`, judge.py:96-102).
+ *
+ * The reply is delivered to the agent as plain steer text, so markdown fences, links and
+ * terminal control sequences are removed instead of being rendered or followed. It is then
+ * trimmed and capped at 1200 characters; an answer that sanitizes to nothing returns `''`,
+ * which makes the caller use the deterministic count template.
  */
 export function parseNudgeReply(
   raw: string | null | undefined,
   maxChars = NUDGE_MAX_CHARS,
 ): string {
-  const text = (raw ?? '').trim()
+  let text = (raw ?? '').replace(/\r\n?/g, '\n')
+  if (!text.trim()) return ''
+  // Fence markers (and an optional language tag) only; the inner text is still useful advice.
+  text = text.replace(/```[^\n]*\n?/g, ' ')
+  // Markdown links keep their label. Bare URLs are removed entirely, including `www.` forms.
+  text = text.replace(/\[([^\]\n]+)\]\((?:https?|ftp):\/\/[^)\s]+\)/gi, '$1')
+  text = text.replace(/\b(?:https?|ftp):\/\/[^\s<>"'`]+/gi, ' ')
+  text = text.replace(/\bwww\.[^\s<>"'`]+/gi, ' ')
+  // ANSI escapes, then C0/C1 controls other than newline and tab.
+  text = text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, '')
+  text = text.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g, '')
+  text = text
+    .replace(/[ \t]+/g, ' ')
+    .replace(/ *\n */g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim()
   if (!text) return ''
-  return text.slice(0, Math.max(1, maxChars))
+  return text.slice(0, Math.max(1, Math.floor(maxChars))).trim()
 }
 
 /**

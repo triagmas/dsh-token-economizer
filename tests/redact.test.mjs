@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   DEFAULT_REDACTION,
+  MAX_REDACTION_BYTES,
   isSensitivePath,
   maskValue,
   redactSecrets,
@@ -69,4 +70,66 @@ test('maskValue keeps only a short prefix and suffix', () => {
   assert.match(masked, /^sk\*\*\*\*/)
   assert.match(masked, /yz$/)
   assert.doesNotMatch(masked, /defghijklm/)
+})
+
+test('new credential shapes are redacted', () => {
+  const cases = [
+    ['slack', ['xoxb', '123456789012', 'abcdefghijklmnop'].join('-'), /xoxb-/],
+    ['google', `AIza${'a'.repeat(35)}`, /AIza/],
+    ['stripe-live', `sk_live_${'a'.repeat(24)}`, /sk_live_/],
+    ['stripe-restricted', `rk_live_${'a'.repeat(24)}`, /rk_live_/],
+    ['npm', `npm_${'a'.repeat(36)}`, /npm_/],
+  ]
+  for (const [name, input, leaked] of cases) {
+    const output = redactSecrets(input)
+    assert.doesNotMatch(output, leaked, `${name} must not leak`)
+    assert.match(output, /REDACTED/, `${name} must carry a marker`)
+  }
+})
+
+test('quoted JSON secret keys are redacted and ordinary JSON survives', () => {
+  const leaked = `"apiKey": "${'a'.repeat(24)}"`
+  assert.doesNotMatch(redactSecrets(`{${leaked}}`), new RegExp('a'.repeat(24)))
+  assert.match(redactSecrets(`{${leaked}}`), /\[REDACTED\]/)
+  assert.match(redactSecrets('{"token": "abcdef"}'), /\[REDACTED\]/, 'six characters is enough for a named secret')
+
+  const ordinary = '{"apiVersion":"v1","name":"demo","path":"/usr/bin","count":3}'
+  assert.equal(redactSecrets(ordinary), ordinary)
+  assert.equal(redactSecrets('PATH=/usr/local/bin:/usr/bin'), 'PATH=/usr/local/bin:/usr/bin')
+})
+
+test('Authorization Basic, Token and Bearer schemes are redacted', () => {
+  for (const scheme of ['Basic', 'Token', 'Bearer']) {
+    const input = `Authorization: ${scheme} abcdefghijklmnop`
+    const output = redactSecrets(input)
+    assert.doesNotMatch(output, /abcdefghijklmnop/, scheme)
+    assert.match(output, /\[REDACTED\]/, scheme)
+  }
+})
+
+test('non-ASCII truncation does not rescan every prefix', () => {
+  const original = Buffer.byteLength
+  let calls = 0
+  Buffer.byteLength = function (...args) {
+    calls += 1
+    return original.apply(this, args)
+  }
+  let output
+  try {
+    output = redactSecrets('\u6f22'.repeat(90_000))
+  } finally {
+    Buffer.byteLength = original
+  }
+  assert.ok(Buffer.byteLength(output, 'utf8') <= MAX_REDACTION_BYTES)
+  assert.ok(!output.includes('\uFFFD'), 'no character may be split')
+  assert.ok(calls <= 4, `byteLength was called ${calls} times`)
+})
+
+test('one megabyte of unclosed private-key headers stays fast', () => {
+  const text = '-----BEGIN PRIVATE KEY-----\n'.repeat(40_000)
+  const started = Date.now()
+  const output = redactSecrets(text)
+  const elapsed = Date.now() - started
+  assert.match(output, /\[REDACTED PRIVATE KEY\]/)
+  assert.ok(elapsed < 500, `redaction took ${elapsed}ms`)
 })

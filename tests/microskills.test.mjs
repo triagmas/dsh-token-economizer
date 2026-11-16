@@ -861,3 +861,29 @@ test('redaction: env fact claims never leak the file paths of evidence', () => {
   })
   assert.equal(result.injectedBlock.includes('/home/user'), false)
 })
+
+test('distiller: parse_payload enforces JSON types before admitting rows', () => {
+  const [extractors, facts] = D.parsePayload(JSON.stringify({
+    extractors: [
+      { name: 'docker', pattern: 'docker ' },
+      { name: 1, pattern: 'docker ' },
+      { name: 'bad-pattern', pattern: 42 },
+      { name: 'array-pattern', pattern: ['x'] },
+    ],
+    facts: [
+      { id: 'good', detector: { scope: 'cmd_regex' }, cite: ['t1'] },
+      { id: 'all-null', detector: { scope: null, fired: null, confirm: null, contradict: null } },
+      { id: 1, detector: { scope: 'cmd_regex' } },
+      { id: 'number-scope', detector: { scope: 1 } },
+      { id: 'array-scope', detector: { scope: ['x'] } },
+      { id: 'string-cite', detector: { scope: 'cmd_regex' }, cite: 't1' },
+      { id: 'array-detector', detector: [] },
+      { id: 'empty-detector', detector: {} },
+    ],
+  }))
+  assert.deepEqual(extractors, [{ name: 'docker', pattern: 'docker ' }])
+  assert.deepEqual(facts, [
+    { id: 'good', detector: { scope: 'cmd_regex' }, cite: ['t1'] },
+    { id: 'all-null', detector: { scope: null, fired: null, confirm: null, contradict: null } },
+  ])
+})

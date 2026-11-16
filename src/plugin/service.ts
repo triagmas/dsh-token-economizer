@@ -24,7 +24,7 @@ import type {
   EMPTY_USAGE,
 } from '../core/types.js'
 import { EMPTY_USAGE as ZERO, addUsage } from '../core/types.js'
-import { CONFIG_DEFAULTS, resolveConfig, type ResolvedConfig } from '../config/schema.js'
+import { CONFIG_DEFAULTS, CONFIG_FIELD_RULES, resolveConfig, type ResolvedConfig } from '../config/schema.js'
 import { DEFAULT_REDACTION } from '../core/redact.js'
 import { SCHEMA_VERSION, Store, type ProjectStore, type SkillsFile } from '../storage/store.js'
 import { buildUsageReport, parsePriceTable, type PriceTable } from '../metrics/ledger.js'
@@ -56,7 +56,6 @@ import type {
   WireCompatibility,
   WireConfigField,
   WireConfigGroup,
-  WireConfigType,
   WireFact,
   WireLoops,
   WireMetricPoint,
@@ -161,13 +160,6 @@ function groupOf(key: string): WireConfigGroup {
   return 'general'
 }
 
-const ENUMS: Record<string, readonly string[]> = {
-  mode: ['off', 'shadow', 'active'],
-  toolpruneMode: ['disabled', 'observe', 'propose', 'automatic'],
-  loopguardLevel: ['conservative', 'default', 'aggressive'],
-  microskillsProfile: ['envfacts', 'distiller', 'envfacts+distiller'],
-}
-
 const ADVANCED = new Set([
   'judgeProvider',
   'judgeModel',
@@ -179,14 +171,6 @@ const ADVANCED = new Set([
   'toolpruneReauditEvery',
   'retentionDays',
 ])
-
-function fieldType(key: string, value: unknown): WireConfigType {
-  if (key in ENUMS) return 'enum'
-  if (typeof value === 'boolean') return 'boolean'
-  if (typeof value === 'number') return 'number'
-  if (Array.isArray(value)) return 'array'
-  return 'string'
-}
 
 function toolStatus(stat: { pruned: boolean; protected: boolean; allowlisted: boolean }): WireTool['status'] {
   if (stat.pruned) return 'hidden'
@@ -222,6 +206,9 @@ class Queue {
  * Reads are async because they may need the project files; the command and the
  * routes both await them. Writes are serialized per project by the store.
  */
+/** Upper bound for the two long-lived session lookup maps; older entries are forgotten. */
+const MAX_TRACKED_SESSIONS = 1_000
+
 export class EconomizerService implements EconomizerApi {
   private readonly options: ServiceOptions
   private readonly store: Store
@@ -281,7 +268,10 @@ export class EconomizerService implements EconomizerApi {
 
   /** Register the workspace root known at agent creation, before any event arrives. */
   registerRoot(sessionId: string, root: string | null): void {
-    if (sessionId) this.roots.set(sessionId, root)
+    if (!sessionId) return
+    this.roots.delete(sessionId)
+    this.roots.set(sessionId, root)
+    this.trimTrackedSessions()
   }
 
   /**
@@ -318,6 +308,11 @@ export class EconomizerService implements EconomizerApi {
           const expired = now - since >= PENDING_MAX_MS
           if (quiet || expired) {
             for (const name of [...pending.items]) {
+              if (allowlistMatches(name, config.toolpruneAllowlist)) {
+                // The allowlist may have changed while the hide was pending.
+                if (unmarkPruned(file, name)) changed = true
+                continue
+              }
               if (markPruned(file, name, 'evidence')) changed = true
             }
             file.autoPending = null
@@ -343,9 +338,12 @@ export class EconomizerService implements EconomizerApi {
   }
 
   observe(session: ObservedSession): void {
+    // Re-insert so Map iteration order reflects the most recent observation.
+    this.sessions.delete(session.sessionId)
     this.sessions.set(session.sessionId, session)
     if (!session.projectRoot) this.unobserved.add(session.sessionId)
     else this.unobserved.delete(session.sessionId)
+    this.trimTrackedSessions()
   }
 
   beginTurn(session: ObservedSession, turn = 1): void {
@@ -959,10 +957,39 @@ export class EconomizerService implements EconomizerApi {
     return block
   }
 
-  /** Drop per-session prompt state when the Host disposes the agent. */
+  /** Drop every piece of per-session state when the Host disposes the agent. */
   forgetSession(sessionId: string): void {
+    this.sessions.delete(sessionId)
+    this.roots.delete(sessionId)
+    this.routes.delete(sessionId)
+    this.guards.delete(sessionId)
+    this.judgeUsage.delete(sessionId)
+    this.judgeTurnUsage.delete(sessionId)
+    this.unobserved.delete(sessionId)
+    this.startedSessions.delete(sessionId)
+    this.judging.delete(sessionId)
+    this.decisionDirty.delete(sessionId)
+    this.pendingDecisions.delete(sessionId)
+    this.redirectedTurns.delete(sessionId)
+    this.appliedIncidents.delete(sessionId)
     this.sessionBlocks.delete(sessionId)
     this.coldLookups.delete(sessionId)
+  }
+
+  /** Keep the session/root lookups bounded on a long-lived process. */
+  private trimTrackedSessions(): void {
+    while (this.sessions.size > MAX_TRACKED_SESSIONS) {
+      const oldest = this.sessions.keys().next().value
+      if (oldest === undefined) break
+      this.sessions.delete(oldest)
+      this.roots.delete(oldest)
+    }
+    while (this.roots.size > MAX_TRACKED_SESSIONS) {
+      const oldest = this.roots.keys().next().value
+      if (oldest === undefined) break
+      this.roots.delete(oldest)
+      this.sessions.delete(oldest)
+    }
   }
 
   private runtimeForRoot(root: string): ProjectRuntime | undefined {
@@ -983,17 +1010,23 @@ export class EconomizerService implements EconomizerApi {
       return []
     }
     const runtime = await this.projectRuntime(project, config)
-    const file = await project.loadTools()
     const reaudit = runtime.reauditPending === true
     runtime.reauditPending = false
     // Only hides that were applied at a session boundary are visible here. Fresh
     // evidence waits in `file.autoPending`; recomputing it mid-session would shrink the
     // catalog the running prompt cache was built against (upstream `denylist.py`).
-    const deny = appliedDenySet(file)
-    if (deny.length !== file.pruned.length) {
-      file.pruned = deny
-      await project.saveTools(file)
-    }
+    // updateTools re-reads under the cross-process lock: a cached row must not overwrite
+    // counters written by a parallel turn.
+    const deny = await project.updateTools((file) => {
+      const current = appliedDenySet(file, config)
+      for (const name of [...file.pruned]) {
+        if (allowlistMatches(name, config.toolpruneAllowlist)) unmarkPruned(file, name)
+      }
+      const same =
+        file.pruned.length === current.length && file.pruned.every((name, index) => name === current[index])
+      if (!same) file.pruned = current
+      return current
+    })
     // A re-audit turn shows the full catalog once; the persisted hides resume on the
     // next reconcile.
     return reaudit ? [] : deny
@@ -1001,15 +1034,10 @@ export class EconomizerService implements EconomizerApi {
 
   /** Clear every persisted hide when mutations are off or not automatic. */
   private async clearPruned(project: ProjectStore): Promise<void> {
-    const file = await project.loadTools()
-    if (!file.pruned.length && !file.autoPending) return
-    let changed = false
-    for (const name of [...file.pruned]) changed = unmarkPruned(file, name) || changed
-    if (file.autoPending) {
+    await project.updateTools((file) => {
+      for (const name of [...file.pruned]) unmarkPruned(file, name)
       file.autoPending = null
-      changed = true
-    }
-    if (changed) await project.saveTools(file)
+    })
   }
 
   /** Load the persisted block for a project at session start. */
@@ -1056,6 +1084,14 @@ export class EconomizerService implements EconomizerApi {
     })
     const judgeRows = rows.filter((row) => row.kind === 'plugin' && row.pluginUsage)
     const judgeTokens = judgeRows.reduce((sum, row) => sum + (row.pluginUsage?.totalTokens ?? 0), 0)
+    const sessionId = input.sessionId ?? null
+    const sessionRows = sessionId ? rows.filter((row) => row.sessionId === sessionId) : []
+    const sessionReport = sessionId
+      ? buildUsageReport(sessionRows, { scope: 'session', sessionId, prices })
+      : null
+    const lastTurnAt = sessionRows.filter((row) => row.kind === 'turn-end').at(-1)?.at ?? null
+    const turnRows = lastTurnAt ? sessionRows.filter((row) => row.at === lastTurnAt) : []
+    const turnTokens = turnRows.length ? buildUsageReport(turnRows, { scope: 'session', sessionId, prices }).pluginUsage.totalTokens : 0
     const judgeCalls = loops.filter((loop) => loop.judge !== 'not-run' && loop.judge !== 'skipped').length
     const redirects = loops.filter((loop) => loop.intervention === 'nudge').length
     const modelRequests = report.modelRequests
@@ -1124,9 +1160,9 @@ export class EconomizerService implements EconomizerApi {
         },
       },
       budget: {
-        sessionTokens: report.pluginUsage.totalTokens || judgeTokens,
+        sessionTokens: sessionReport?.pluginUsage.totalTokens ?? 0,
         sessionLimit: config.maxOverheadTokensPerSession,
-        turnTokens: 0,
+        turnTokens,
         overheadTokens: report.pluginUsage.totalTokens || judgeTokens,
       },
       notes: this.notes(config, report, Boolean(project)),
@@ -1134,21 +1170,38 @@ export class EconomizerService implements EconomizerApi {
   }
 
   async overview(input: ProjectScopeInput): Promise<WireOverview> {
+    const config = this.config()
     const status = await this.status(input)
     const resolved = await this.resolve(input)
     const rows = resolved ? await resolved.project.readMetrics() : []
     const loops = resolved ? await resolved.project.readLoops() : []
-    const lastModelRows = rows.filter((row) => row.kind === 'model' && row.usage).slice(-20)
-    const recent: WireMetricPoint[] = lastModelRows.map((row) => ({
-      at: row.at,
-      modelRequests: 1,
-      inputTokens: row.usage?.inputTokens ?? 0,
-      outputTokens: row.usage?.outputTokens ?? 0,
-      effectiveTokens: null,
-      costUsd: null,
-      toolCalls: 0,
-      toolErrors: 0,
-    }))
+    // Rows from one finished turn share its `at` and session id. Grouping them keeps a
+    // tool-only or multi-model turn on one line and lets the report compute its real
+    // effective-token and cost figures instead of leaving the UI columns empty.
+    const groups = new Map<string, MetricRecord[]>()
+    for (const row of rows) {
+      const key = `${row.sessionId}\u0000${row.at}`
+      const group = groups.get(key)
+      if (group) group.push(row)
+      else groups.set(key, [row])
+    }
+    const prices = parsePriceTable(config.priceTable)
+    const recent: WireMetricPoint[] = [...groups.values()]
+      .sort((left, right) => (left[0]?.at ?? '').localeCompare(right[0]?.at ?? ''))
+      .slice(-20)
+      .map((group) => {
+        const report = buildUsageReport(group, { prices })
+        return {
+          at: group[0]?.at ?? '',
+          modelRequests: report.modelRequests,
+          inputTokens: report.usage.inputTokens,
+          outputTokens: report.usage.outputTokens,
+          effectiveTokens: report.effectiveTokens,
+          costUsd: report.costUsd,
+          toolCalls: report.toolCalls,
+          toolErrors: report.failedToolCalls,
+        }
+      })
     const sessions = new Set(rows.map((row) => row.rootSessionId))
     const subagents = rows.filter((row) => row.isSubagent)
     return {
@@ -1331,18 +1384,16 @@ export class EconomizerService implements EconomizerApi {
   async settings(): Promise<WireSettings> {
     const config = this.config()
     const fields: WireConfigField[] = Object.keys(CONFIG_DEFAULTS).map((key) => {
-      const value = (CONFIG_DEFAULTS as unknown as Record<string, unknown>)[key]
+      const rule = CONFIG_FIELD_RULES[key as keyof ResolvedConfig]
       const field: WireConfigField = {
         key,
-        type: fieldType(key, value),
+        type: rule.type,
         group: groupOf(key),
       }
-      const options = ENUMS[key]
-      if (options) field.options = [...options]
-      if (typeof value === 'number') {
-        field.min = 0
-        field.max = Number.MAX_SAFE_INTEGER
-      }
+      if (rule.options) field.options = [...rule.options]
+      if (rule.min !== undefined) field.min = rule.min
+      if (rule.max !== undefined) field.max = rule.max
+      if (rule.step !== undefined) field.step = rule.step
       if (ADVANCED.has(key)) field.advanced = true
       return field
     })
@@ -1404,14 +1455,11 @@ export class EconomizerService implements EconomizerApi {
     }
     let changed = 0
     await project.updateSkills((file) => {
-      const before = file.facts.length
       if (payload.action === 'clearCandidates') {
         file.facts = file.facts.filter((fact) => {
-          if (fact.state === 'CANDIDATE') {
-            changed += 1
-            return false
-          }
-          return true
+          if (fact.state !== 'CANDIDATE') return true
+          changed += 1
+          return false
         })
       } else if (payload.action === 'confirm') {
         for (const fact of file.facts) {
@@ -1422,14 +1470,15 @@ export class EconomizerService implements EconomizerApi {
           fact.updatedAt = new Date().toISOString()
           changed += 1
         }
-      } else if (payload.action === 'reject' || payload.action === 'delete') {
-        file.facts = file.facts.filter((fact) => !ids.has(fact.id) || ((changed += 1), false))
-      }
-      if (payload.action === 'reject' || payload.action === 'delete') {
-        // changed was incremented in the filter above
+      } else {
+        // `delete` is the historical alias for `reject`; both remove the row.
+        file.facts = file.facts.filter((fact) => {
+          if (!ids.has(fact.id)) return true
+          changed += 1
+          return false
+        })
       }
       file.updatedAt = new Date().toISOString()
-      if (payload.action !== 'confirm') void before
     })
     await this.refreshBlock(project)
     this.options.onToolsChanged?.(resolved.runtime.root)
@@ -1479,20 +1528,31 @@ export class EconomizerService implements EconomizerApi {
     }
     const validated: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(patch)) {
-      if (!(key in CONFIG_DEFAULTS)) throw errorCode('BAD_REQUEST', `Unknown configuration key "${key}".`)
-      const expected = (CONFIG_DEFAULTS as unknown as Record<string, unknown>)[key]
-      const options = ENUMS[key]
-      if (options) {
+      if (!Object.hasOwn(CONFIG_DEFAULTS, key) || !Object.hasOwn(CONFIG_FIELD_RULES, key)) {
+        throw errorCode('BAD_REQUEST', `Unknown configuration key "${key}".`)
+      }
+      const rule = CONFIG_FIELD_RULES[key as keyof ResolvedConfig]
+      if (rule.type === 'enum') {
+        const options = rule.options ?? []
         if (typeof value !== 'string' || !options.includes(value)) {
           throw errorCode('BAD_REQUEST', `${key} must be one of ${options.join(', ')}.`)
         }
-      } else if (typeof expected === 'boolean') {
+      } else if (rule.type === 'boolean') {
         if (typeof value !== 'boolean') throw errorCode('BAD_REQUEST', `${key} must be a boolean.`)
-      } else if (typeof expected === 'number') {
+      } else if (rule.type === 'number') {
         if (typeof value !== 'number' || !Number.isFinite(value)) {
           throw errorCode('BAD_REQUEST', `${key} must be a finite number.`)
         }
-      } else if (Array.isArray(expected)) {
+        if (rule.min !== undefined && value < rule.min) {
+          throw errorCode('BAD_REQUEST', `${key} must be between ${rule.min} and ${rule.max ?? '∞'}.`)
+        }
+        if (rule.max !== undefined && value > rule.max) {
+          throw errorCode('BAD_REQUEST', `${key} must be between ${rule.min ?? '−∞'} and ${rule.max}.`)
+        }
+        if (rule.step === 1 && !Number.isInteger(value)) {
+          throw errorCode('BAD_REQUEST', `${key} must be an integer.`)
+        }
+      } else if (rule.type === 'array') {
         if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
           throw errorCode('BAD_REQUEST', `${key} must be an array of strings.`)
         }

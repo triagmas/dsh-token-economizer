@@ -15,6 +15,12 @@ the review protocol are documented in [REVIEW.md](REVIEW.md). If you are
 reviewing this repository, read that file first: the acceptance criterion is
 fidelity to the pinned upstream commit, not a general redesign.
 
+CI (`.github/workflows/ci.yml`) runs on Node 22 for every pull request and every
+push to `main`: build, typecheck, the unit suite, the committed parity vectors,
+the smoke test and `check:dist`, in that order. It needs no network beyond
+`npm ci` and no Python; the upstream checkout is only needed to regenerate the
+parity vectors locally.
+
 * No fork of DSH, no patched system packages, no MCP transport, no external server.
 * Runs in the Web UI, the TUI/CLI, and headless runs. All state is plain JSON/JSONL
   under `$DSH_HOME/token-economizer/`.
@@ -75,7 +81,7 @@ Restart the Web UI (host plugins mount at boot). Then:
 
 ```bash
 /economizer status        # what is on, what was measured
-/economizer on            # switch to SHADOW
+/economizer on            # switch to SHADOW from OFF (an ACTIVE mode is kept)
 /economizer mode active   # apply enabled mechanisms
 /economizer report        # measured vs estimated, per mechanism
 ```
@@ -87,7 +93,7 @@ Requirements: DSH `>=0.2.0 <0.3.0`, Node.js 22+.
 
 Settings → **Token economizer** (five tabs, English and Russian):
 
-* **Overview** — mode, measurement totals, mechanism counters, budget and honest notes, with a compact six-column metric table.
+* **Overview** — mode, measurement totals, mechanism counters, a session-scoped overhead budget and honest notes, with a compact six-column per-turn table.
 * **Micro-skills** — confirmed facts, pending candidates, confirm/reject/clear.
 * **Tools** — compact usage summary, calls/evidence, status and restore, pruning mode; protected names collapse into one summary line.
 * **Loop guard** — incidents, judge usage, redirect history.
@@ -108,13 +114,14 @@ host) to pick up both changes; `/economizer status` shows what is still pending.
 
 ```text
 /economizer status | on | off | mode shadow|active | report
-/economizer skills list | skills review | skills clear
-/economizer tools status | tools restore <name> | tools restore --all
+/economizer skills list | skills review | skills confirm <id> | skills reject <id> | skills clear
+/economizer tools status | tools restore [name] | tools mode observe|propose|automatic
 /economizer loops history
-/economizer config [key] [value]
+/economizer config | config set <key>=<value>
 ```
 
-`/economizer on` means SHADOW; applying changes always requires `mode active`.
+`/economizer on` means SHADOW from OFF; applying changes always requires `mode active`.
+`/economizer on` leaves an already ACTIVE configuration active; use `mode shadow` to downgrade.
 
 ## Measurement honesty
 
