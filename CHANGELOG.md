@@ -5,6 +5,21 @@ All notable changes to this plugin are recorded here. The format follows
 
 ## [Unreleased]
 
+### Upstream drift after the pinned revision
+
+- Audited `7042ea8..583fff7` in the vendored checkout without moving the pin.
+  The only change ported from that range is the `parse_payload` type-guard fix
+  (upstream PR #198): non-string extractor/detector fields, a non-object
+  detector, and a non-list `cite` are now rejected instead of reaching the
+  regex compiler. The port's `compilePattern` remains the equivalent runtime
+  guard, and a unit test covers the malformed shapes.
+- Deliberately not ported from the same range: manual micro-skill
+  forget/unforget (PR #160), atomic mechanism writes, transcript-loader type
+  guards, shell-wrapper/multi-path patch/Python-flag loopguard changes,
+  local-model (`fm`) routing, and new pricing rows. Reasons and per-file
+  classification are in `docs/UPSTREAM.md`; the pin and parity vectors still
+  describe `7042ea8`.
+
 Fidelity fixes against Microsoft TokenEconomizer, pinned commit
 `7042ea89dd5e5ecbc67ad865ad6e256e61be8bf0`.
 

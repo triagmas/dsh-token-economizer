@@ -621,14 +621,26 @@ export function parsePayload(raw: string): [Array<Record<string, unknown>>, Arra
     return [[], []]
   }
   const asObjects = (value: unknown): Array<Record<string, unknown>> =>
-    Array.isArray(value) ? (value.filter((item) => item && typeof item === 'object') as Array<Record<string, unknown>>) : []
-  // Python truthiness: an empty `detector: {}` is falsy, so such a fact is dropped upstream.
-  const nonEmpty = (value: unknown): boolean =>
-    typeof value === 'string' ? value.length > 0
-      : value !== null && typeof value === 'object' ? Object.keys(value as object).length > 0
-        : Boolean(value)
-  const extractors = asObjects(obj.extractors).filter((entry) => nonEmpty(entry.name) && nonEmpty(entry.pattern))
-  const facts = asObjects(obj.facts).filter((entry) => nonEmpty(entry.id) && nonEmpty(entry.detector))
+    Array.isArray(value)
+      ? value.filter((item): item is Record<string, unknown> =>
+        Boolean(item) && typeof item === 'object' && !Array.isArray(item))
+      : []
+  const nonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0
+  // Upstream PR #198: these fields are later handed to the detector/extractor compiler, so a
+  // non-string is rejected here instead of throwing at evaluation time.
+  const detectorFieldsOk = (detector: Record<string, unknown>): boolean =>
+    ['scope', 'fired', 'confirm', 'contradict'].every((key) =>
+      detector[key] === undefined || detector[key] === null || typeof detector[key] === 'string')
+  const extractors = asObjects(obj.extractors).filter((entry) =>
+    nonEmptyString(entry.name) && nonEmptyString(entry.pattern))
+  const facts = asObjects(obj.facts).filter((entry) => {
+    const detector = entry.detector
+    return nonEmptyString(entry.id)
+      && Boolean(detector) && typeof detector === 'object' && !Array.isArray(detector)
+      && Object.keys(detector as object).length > 0
+      && detectorFieldsOk(detector as Record<string, unknown>)
+      && (entry.cite === undefined || entry.cite === null || Array.isArray(entry.cite))
+  })
   return [extractors, facts]
 }
 
