@@ -38,6 +38,29 @@ export async function writeJsonAtomic(path: string, value: unknown): Promise<voi
   }
 }
 
+/**
+ * Write JSONL atomically: one JSON object per line, or an empty file for no rows.
+ * Compaction must never leave a pretty-printed JSON array in a `.jsonl` file.
+ */
+export async function writeJsonlAtomic(path: string, rows: readonly unknown[]): Promise<void> {
+  await ensureDir(dirname(path))
+  const tmp = `${path}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`
+  const text = rows.length ? `${rows.map((row) => JSON.stringify(row)).join('\n')}\n` : ''
+  await writeFile(tmp, text, { encoding: 'utf8', mode: 0o600 })
+  try {
+    await rename(tmp, path)
+  } catch (error) {
+    // Windows cannot always replace an open destination; retry once after unlink.
+    await unlink(path).catch(() => undefined)
+    try {
+      await rename(tmp, path)
+    } catch (inner) {
+      await unlink(tmp).catch(() => undefined)
+      throw inner
+    }
+  }
+}
+
 /** Read JSON, returning `fallback` for a missing or corrupt file. */
 export async function readJsonSafe<T>(path: string, fallback: T): Promise<T> {
   try {

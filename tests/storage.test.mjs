@@ -190,3 +190,114 @@ test('metrics and loop rows append and read back in order, with rotation', async
     await rm(root, { recursive: true, force: true })
   }
 })
+
+test('maintenance compacts metrics to one JSON object per line', async () => {
+  const root = await workspace()
+  try {
+    const store = new Store({ DSH_HOME: root })
+    await store.open('0.1.0', '0.2.2')
+    const projectRoot = join(root, 'work', 'compact')
+    await mkdir(projectRoot, { recursive: true })
+    const project = await store.project(projectRoot)
+    const oldAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    const newAt = new Date().toISOString()
+    await project.appendMetrics([
+      { schemaVersion: SCHEMA_VERSION, at: oldAt, kind: 'model' },
+      { schemaVersion: SCHEMA_VERSION, at: oldAt, kind: 'tool' },
+      { schemaVersion: SCHEMA_VERSION, at: newAt, kind: 'turn-end' },
+    ], 0)
+
+    await project.maintenance(1, 1_000_000)
+
+    const rows = await project.readMetrics()
+    assert.deepEqual(rows.map((row) => row.kind), ['turn-end'], 'old rows are retained only in the rotated file')
+    const text = await readFile(project.metricsPath, 'utf8')
+    const lines = text.split('\n').filter((line) => line.trim() !== '')
+    assert.equal(lines.length, 1, 'compacted file is JSONL, not a pretty-printed array')
+    for (const line of lines) assert.doesNotThrow(() => JSON.parse(line))
+    assert.equal(existsSync(`${project.metricsPath}.compact`), false, 'no .compact file is left behind')
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('maintenance leaves an all-recent metrics file byte-for-byte unchanged', async () => {
+  const root = await workspace()
+  try {
+    const store = new Store({ DSH_HOME: root })
+    await store.open('0.1.0', '0.2.2')
+    const projectRoot = join(root, 'work', 'recent')
+    await mkdir(projectRoot, { recursive: true })
+    const project = await store.project(projectRoot)
+    const at = new Date().toISOString()
+    await project.appendMetrics([
+      { schemaVersion: SCHEMA_VERSION, at, kind: 'model' },
+      { schemaVersion: SCHEMA_VERSION, at, kind: 'turn-end' },
+    ], 0)
+    const before = await readFile(project.metricsPath, 'utf8')
+
+    await project.maintenance(30, 1_000_000)
+
+    const after = await readFile(project.metricsPath, 'utf8')
+    assert.equal(after, before, 'no rewrite when nothing expired')
+    assert.equal((await project.readMetrics()).length, 2)
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('metrics can be appended after a JSONL compaction', async () => {
+  const root = await workspace()
+  try {
+    const store = new Store({ DSH_HOME: root })
+    await store.open('0.1.0', '0.2.2')
+    const projectRoot = join(root, 'work', 'append-after')
+    await mkdir(projectRoot, { recursive: true })
+    const project = await store.project(projectRoot)
+    const oldAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    const newAt = new Date().toISOString()
+    await project.appendMetrics([
+      { schemaVersion: SCHEMA_VERSION, at: oldAt, kind: 'model' },
+      { schemaVersion: SCHEMA_VERSION, at: newAt, kind: 'turn-end' },
+    ], 0)
+    await project.maintenance(1, 1_000_000)
+
+    await project.appendMetric({ schemaVersion: SCHEMA_VERSION, at: new Date().toISOString(), kind: 'tool' }, 0)
+
+    const rows = await project.readMetrics()
+    assert.deepEqual(rows.map((row) => row.kind), ['turn-end', 'tool'])
+    const lines = (await readFile(project.metricsPath, 'utf8')).split('\n').filter((line) => line.trim() !== '')
+    for (const line of lines) assert.doesNotThrow(() => JSON.parse(line))
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('clearLoops writes an empty JSONL file, not a JSON array', async () => {
+  const root = await workspace()
+  try {
+    const store = new Store({ DSH_HOME: root })
+    await store.open('0.1.0', '0.2.2')
+    const projectRoot = join(root, 'work', 'clear-loops')
+    await mkdir(projectRoot, { recursive: true })
+    const project = await store.project(projectRoot)
+    await project.appendLoop({
+      id: 'loop-clear', at: new Date().toISOString(), agentId: 's', sessionId: 's', rootSessionId: 's',
+      projectId: project.meta.projectId, kind: 'stagnation', repeats: 1, turn: 1, step: 1,
+      judge: 'not-run', confidence: null, intervention: 'none', nudge: null, outcome: 'unknown', detail: {},
+    }, 0)
+
+    await project.clearLoops()
+
+    assert.equal(await readFile(project.loopsPath, 'utf8'), '')
+    assert.deepEqual(await project.readLoops(), [])
+    await project.appendLoop({
+      id: 'loop-after', at: new Date().toISOString(), agentId: 's', sessionId: 's', rootSessionId: 's',
+      projectId: project.meta.projectId, kind: 'stagnation', repeats: 1, turn: 2, step: 2,
+      judge: 'not-run', confidence: null, intervention: 'none', nudge: null, outcome: 'unknown', detail: {},
+    }, 0)
+    assert.equal((await project.readLoops()).length, 1, 'the empty file is still appendable JSONL')
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})

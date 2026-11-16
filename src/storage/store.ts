@@ -26,6 +26,7 @@ import {
   rotateJsonl,
   withFileLock,
   writeJsonAtomic,
+  writeJsonlAtomic,
 } from '../core/atomic.js'
 import { canonicalPath, dataRoot, projectIdForRoot, projectDir } from '../core/paths.js'
 import type { LoopIncident, MetricRecord, ProjectMeta, StoredFact, ToolStat, UsageCounts } from '../core/types.js'
@@ -235,7 +236,7 @@ export class ProjectStore {
 
   /** Remove every recorded loop incident for this project. */
   async clearLoops(): Promise<void> {
-    await writeJsonAtomic(this.loopsPath, [])
+    await writeJsonlAtomic(this.loopsPath, [])
   }
 
   async appendLoop(incident: LoopIncident, maxBytes: number): Promise<void> {
@@ -282,12 +283,8 @@ export class ProjectStore {
       return !Number.isFinite(time) || time >= cutoff
     })
     if (kept.length !== rows.length) {
-      const tmp = `${this.metricsPath}.compact`
-      await writeJsonAtomic(tmp, kept)
-      await rotateJsonl(this.metricsPath).catch(() => undefined)
-      await writeJsonAtomic(this.metricsPath, kept)
-      const { unlink } = await import('node:fs/promises')
-      await unlink(tmp).catch(() => undefined)
+      // One JSON object per line, written beside the target and renamed atomically.
+      await writeJsonlAtomic(this.metricsPath, kept)
     }
     try {
       const info = await stat(this.metricsPath)
