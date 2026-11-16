@@ -354,6 +354,37 @@ test('micro-skill confirmation, rejection and clearing mutate only the selected 
   }
 })
 
+test('settings expose and enforce the schema ranges', async () => {
+  const env = await setup()
+  try {
+    const settings = await env.service.settings()
+    const byKey = new Map(settings.fields.map((field) => [field.key, field]))
+    const expected = {
+      microskillsMaxFacts: { min: 0, max: 50, step: 1 },
+      loopguardConfidence: { min: 0.5, max: 1, step: 0.01 },
+      maxMetricsBytes: { min: 262144, max: 268435456, step: 262144 },
+      toolpruneQuietMinutes: { min: 0, max: 10080, step: 1 },
+    }
+    for (const [key, range] of Object.entries(expected)) {
+      const field = byKey.get(key)
+      assert.ok(field, key)
+      assert.equal(field.min, range.min, `${key} min`)
+      assert.equal(field.max, range.max, `${key} max`)
+      assert.equal(field.step, range.step, `${key} step`)
+    }
+
+    await assert.rejects(() => env.service.updateSettings({ microskillsMaxFacts: 51 }), /between 0 and 50/)
+    await assert.rejects(() => env.service.updateSettings({ loopguardConfidence: 0.4 }), /between 0.5 and 1/)
+    await assert.rejects(() => env.service.updateSettings({ maxMetricsBytes: 1 }), /between 262144 and 268435456/)
+    await assert.rejects(() => env.service.updateSettings({ microskillsMaxFacts: 1.5 }), /integer/)
+    assert.equal(env.configWrites.length, 0, 'invalid patches are not written')
+    await env.service.updateSettings({ microskillsMaxFacts: 50 })
+    assert.equal(env.configWrites.length, 1, 'a boundary value is accepted')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
 test('settings validation rejects unknown keys, bad enums and bad types', async () => {
   const env = await setup()
   try {

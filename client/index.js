@@ -1624,6 +1624,7 @@ window.__ModuleLoader__.load({
       if (!Number.isFinite(number)) return false
       if (typeof field.min === 'number' && number < field.min) return false
       if (typeof field.max === 'number' && number > field.max) return false
+      if (field.step === 1 && !Number.isInteger(number)) return false
       return true
     }
 
@@ -1751,7 +1752,7 @@ window.__ModuleLoader__.load({
             value: typeof value === 'string' ? value : String(value === undefined ? '' : value),
             min: typeof field.min === 'number' ? field.min : undefined,
             max: typeof field.max === 'number' ? field.max : undefined,
-            step: 'any',
+            step: typeof field.step === 'number' ? String(field.step) : 'any',
             disabled,
             onChange: (event) => updateField(field.key, event.target.value),
           })

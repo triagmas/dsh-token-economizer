@@ -24,7 +24,7 @@ import type {
   EMPTY_USAGE,
 } from '../core/types.js'
 import { EMPTY_USAGE as ZERO, addUsage } from '../core/types.js'
-import { CONFIG_DEFAULTS, resolveConfig, type ResolvedConfig } from '../config/schema.js'
+import { CONFIG_DEFAULTS, CONFIG_FIELD_RULES, resolveConfig, type ResolvedConfig } from '../config/schema.js'
 import { DEFAULT_REDACTION } from '../core/redact.js'
 import { SCHEMA_VERSION, Store, type ProjectStore, type SkillsFile } from '../storage/store.js'
 import { buildUsageReport, parsePriceTable, type PriceTable } from '../metrics/ledger.js'
@@ -56,7 +56,6 @@ import type {
   WireCompatibility,
   WireConfigField,
   WireConfigGroup,
-  WireConfigType,
   WireFact,
   WireLoops,
   WireMetricPoint,
@@ -161,13 +160,6 @@ function groupOf(key: string): WireConfigGroup {
   return 'general'
 }
 
-const ENUMS: Record<string, readonly string[]> = {
-  mode: ['off', 'shadow', 'active'],
-  toolpruneMode: ['disabled', 'observe', 'propose', 'automatic'],
-  loopguardLevel: ['conservative', 'default', 'aggressive'],
-  microskillsProfile: ['envfacts', 'distiller', 'envfacts+distiller'],
-}
-
 const ADVANCED = new Set([
   'judgeProvider',
   'judgeModel',
@@ -179,14 +171,6 @@ const ADVANCED = new Set([
   'toolpruneReauditEvery',
   'retentionDays',
 ])
-
-function fieldType(key: string, value: unknown): WireConfigType {
-  if (key in ENUMS) return 'enum'
-  if (typeof value === 'boolean') return 'boolean'
-  if (typeof value === 'number') return 'number'
-  if (Array.isArray(value)) return 'array'
-  return 'string'
-}
 
 function toolStatus(stat: { pruned: boolean; protected: boolean; allowlisted: boolean }): WireTool['status'] {
   if (stat.pruned) return 'hidden'
@@ -1381,18 +1365,16 @@ export class EconomizerService implements EconomizerApi {
   async settings(): Promise<WireSettings> {
     const config = this.config()
     const fields: WireConfigField[] = Object.keys(CONFIG_DEFAULTS).map((key) => {
-      const value = (CONFIG_DEFAULTS as unknown as Record<string, unknown>)[key]
+      const rule = CONFIG_FIELD_RULES[key as keyof ResolvedConfig]
       const field: WireConfigField = {
         key,
-        type: fieldType(key, value),
+        type: rule.type,
         group: groupOf(key),
       }
-      const options = ENUMS[key]
-      if (options) field.options = [...options]
-      if (typeof value === 'number') {
-        field.min = 0
-        field.max = Number.MAX_SAFE_INTEGER
-      }
+      if (rule.options) field.options = [...rule.options]
+      if (rule.min !== undefined) field.min = rule.min
+      if (rule.max !== undefined) field.max = rule.max
+      if (rule.step !== undefined) field.step = rule.step
       if (ADVANCED.has(key)) field.advanced = true
       return field
     })
@@ -1530,19 +1512,28 @@ export class EconomizerService implements EconomizerApi {
     const validated: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(patch)) {
       if (!(key in CONFIG_DEFAULTS)) throw errorCode('BAD_REQUEST', `Unknown configuration key "${key}".`)
-      const expected = (CONFIG_DEFAULTS as unknown as Record<string, unknown>)[key]
-      const options = ENUMS[key]
-      if (options) {
+      const rule = CONFIG_FIELD_RULES[key as keyof ResolvedConfig]
+      if (rule.type === 'enum') {
+        const options = rule.options ?? []
         if (typeof value !== 'string' || !options.includes(value)) {
           throw errorCode('BAD_REQUEST', `${key} must be one of ${options.join(', ')}.`)
         }
-      } else if (typeof expected === 'boolean') {
+      } else if (rule.type === 'boolean') {
         if (typeof value !== 'boolean') throw errorCode('BAD_REQUEST', `${key} must be a boolean.`)
-      } else if (typeof expected === 'number') {
+      } else if (rule.type === 'number') {
         if (typeof value !== 'number' || !Number.isFinite(value)) {
           throw errorCode('BAD_REQUEST', `${key} must be a finite number.`)
         }
-      } else if (Array.isArray(expected)) {
+        if (rule.min !== undefined && value < rule.min) {
+          throw errorCode('BAD_REQUEST', `${key} must be between ${rule.min} and ${rule.max ?? '∞'}.`)
+        }
+        if (rule.max !== undefined && value > rule.max) {
+          throw errorCode('BAD_REQUEST', `${key} must be between ${rule.min ?? '−∞'} and ${rule.max}.`)
+        }
+        if (rule.step === 1 && !Number.isInteger(value)) {
+          throw errorCode('BAD_REQUEST', `${key} must be an integer.`)
+        }
+      } else if (rule.type === 'array') {
         if (!Array.isArray(value) || value.some((entry) => typeof entry !== 'string')) {
           throw errorCode('BAD_REQUEST', `${key} must be an array of strings.`)
         }

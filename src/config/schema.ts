@@ -301,6 +301,54 @@ export const CONFIG_DEFAULTS: ResolvedConfig = {
   debug: false,
 }
 
+export type ConfigFieldType = 'boolean' | 'number' | 'string' | 'enum' | 'array'
+
+/** The single source of truth for what `updateSettings` accepts and what the UI shows. */
+export interface ConfigFieldRule {
+  type: ConfigFieldType
+  options?: readonly string[]
+  min?: number
+  max?: number
+  step?: number
+}
+
+export const CONFIG_FIELD_RULES: Record<keyof ResolvedConfig, ConfigFieldRule> = {
+  mode: { type: 'enum', options: ['off', 'shadow', 'active'] },
+  microskillsEnabled: { type: 'boolean' },
+  microskillsInject: { type: 'boolean' },
+  microskillsProfile: { type: 'enum', options: ['envfacts', 'distiller', 'envfacts+distiller'] },
+  microskillsMaxFacts: { type: 'number', min: 0, max: 50, step: 1 },
+  microskillsMaxTokens: { type: 'number', min: 0, max: 4000, step: 50 },
+  microskillsMinConfirmations: { type: 'number', min: 1, max: 10, step: 1 },
+  microskillsRetireDays: { type: 'number', min: 0, max: 3650, step: 1 },
+  toolpruneEnabled: { type: 'boolean' },
+  toolpruneMode: { type: 'enum', options: ['disabled', 'observe', 'propose', 'automatic'] },
+  toolpruneEvidence: { type: 'number', min: 1, max: 100, step: 1 },
+  toolpruneMinSessions: { type: 'number', min: 1, max: 100, step: 1 },
+  toolpruneSessions: { type: 'number', min: 1, max: 100, step: 1 },
+  toolpruneQuietMinutes: { type: 'number', min: 0, max: 10080, step: 1 },
+  toolpruneReauditEvery: { type: 'number', min: 0, max: 1000, step: 1 },
+  toolpruneAllowlist: { type: 'array' },
+  loopguardEnabled: { type: 'boolean' },
+  loopguardIntervene: { type: 'boolean' },
+  loopguardLevel: { type: 'enum', options: ['conservative', 'default', 'aggressive'] },
+  loopguardJudge: { type: 'boolean' },
+  loopguardConfidence: { type: 'number', min: 0.5, max: 1, step: 0.01 },
+  loopguardMaxInterventions: { type: 'number', min: 0, max: 5, step: 1 },
+  loopguardJudgeTimeoutMs: { type: 'number', min: 1000, max: 120000, step: 1000 },
+  loopguardNudgeMaxTokens: { type: 'number', min: 20, max: 1000, step: 10 },
+  subagentsEnabled: { type: 'boolean' },
+  judgeProvider: { type: 'string' },
+  judgeModel: { type: 'string' },
+  maxOverheadTokensPerTurn: { type: 'number', min: 0, max: 200000, step: 100 },
+  maxOverheadTokensPerSession: { type: 'number', min: 0, max: 2000000, step: 1000 },
+  storeEvidence: { type: 'boolean' },
+  retentionDays: { type: 'number', min: 1, max: 3650, step: 1 },
+  maxMetricsBytes: { type: 'number', min: 262144, max: 268435456, step: 262144 },
+  priceTable: { type: 'string' },
+  debug: { type: 'boolean' },
+}
+
 /** Unwrap a schemastery volatile reference (`{ get() }`) or pass a plain value through. */
 export function unwrap<T>(value: unknown): T {
   if (typeof value === 'object' && value !== null && typeof (value as { get?: unknown }).get === 'function') {

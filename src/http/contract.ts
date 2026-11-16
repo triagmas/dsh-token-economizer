@@ -198,6 +198,7 @@ export interface WireConfigField {
   options?: string[]
   min?: number
   max?: number
+  step?: number
   advanced?: boolean
 }
 
