@@ -435,11 +435,14 @@ export function computeDenySet(file: ToolsFile, config: ResolvedConfig, context:
  * `autoPending` until a later session. Used by `denySetForSession` so the running
  * session's catalog cannot shrink mid-turn.
  */
-export function appliedDenySet(file: ToolsFile): string[] {
+export function appliedDenySet(file: ToolsFile, config?: ResolvedConfig): string[] {
   const deny = new Set<string>()
   for (const name of Array.isArray(file.pruned) ? file.pruned : []) {
     const stat = file.tools[name]
     if (!stat || isToolInactive(stat) || stat.protected || isProtectedName(name)) continue
+    // The allowlist wins over an already-applied hide. The caller persists the removal
+    // (and clears the row flag) because this function is also used for diagnostics.
+    if (config && isAllowlisted(name, config)) continue
     if (hasEverBeenUsed(stat)) continue
     if ((stat as PolicyToolRow).restored) continue
     deny.add(name)

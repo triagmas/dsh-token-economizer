@@ -1059,6 +1059,59 @@ test('the quiet period holds a pending hide until the project has been idle', as
   }
 })
 
+test('an allowlist entry wins over a pending automatic hide', async () => {
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
+  })
+  try {
+    await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    let project = await env.store.project(PROJECT)
+    let tools = await project.loadTools()
+    assert.ok(tools.autoPending?.items.includes('rare_tool'), 'the hide is pending first')
+
+    await env.service.updateSettings({ toolpruneAllowlist: ['rare_tool'] })
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+
+    assert.deepEqual(await env.service.denySetForSession('session-2'), [], 'an allowlisted pending tool is not hidden')
+    project = await env.store.project(PROJECT)
+    tools = await project.loadTools()
+    assert.equal(tools.pruned.includes('rare_tool'), false)
+    assert.equal(tools.autoPending, null)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('adding a hidden tool to the allowlist returns it immediately', async () => {
+  const env = await setup({
+    mode: 'active',
+    toolpruneMode: 'automatic',
+    toolpruneMinSessions: 1,
+    toolpruneEvidence: 1,
+    toolpruneQuietMinutes: 0,
+  })
+  try {
+    await finishTurn(env.service, { turn: 1, calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+    env.service.registerRoot('session-2', PROJECT)
+    await env.service.beginSession('session-2', PROJECT)
+    assert.ok((await env.service.denySetForSession('session-2')).includes('rare_tool'), 'hidden before the allowlist')
+
+    await env.service.updateSettings({ toolpruneAllowlist: ['rare_tool'] })
+    assert.deepEqual(await env.service.denySetForSession('session-2'), [], 'allowlist wins over an applied hide')
+    const project = await env.store.project(PROJECT)
+    const tools = await project.loadTools()
+    assert.equal(tools.pruned.includes('rare_tool'), false, 'the persisted hide is removed')
+    assert.equal(tools.tools.rare_tool.pruned, false, 'the row flag is cleared too')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
 test('a long-lived session cannot apply a hidden set discovered mid-session', async () => {
   const env = await setup({
     mode: 'active',
