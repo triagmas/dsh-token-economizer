@@ -110,7 +110,15 @@ session concept, matching upstream.
    gates so a mis-set mode cannot rewrite a prompt, hide tools, or insert a
    redirect without a second deliberate switch. This is not an upstream
    equivalence and is recorded here as a deviation.
-6. **Not ported, by scope.** The following upstream components are deliberately
+6. **Strict judge verdict (safety deviation).** Upstream's `llm_stuck_judge`
+   applies Python `bool()` to the JSON `stuck` field, so a model reply such as
+   `{"stuck": "false"}` or `{"stuck": 1}` is truthy and can authorize a paid
+   redirect. This port accepts only a JSON boolean and treats every other type
+   as ambiguous, falling back to the free heuristic/envelope path. The
+   loopguard parity vectors feed already-typed verdicts into `assessAbort`, so
+   raw judge JSON is deliberately excluded from that comparison; the strict
+   parser is covered by unit and parity-guard tests instead.
+7. **Not ported, by scope.** The following upstream components are deliberately
    absent rather than silently emulated:
    * `microskills`: the paid proposer is not called automatically (its digest,
      extractor and prompts are ported; the caller may pass proposed facts).

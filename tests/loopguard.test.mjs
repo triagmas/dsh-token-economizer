@@ -474,8 +474,10 @@ test('judge and writer parsers are strict and bounded', () => {
     confidence: 1,
     reason: 'ok',
   })
-  // Python bool() coercion: the string "false" is true.
-  assert.equal(parseJudgeReply('{"stuck": "false"}').stuck, true)
+  // Strict booleans: Python bool() would read the string "false" as stuck.
+  assert.equal(parseJudgeReply('{"stuck": "false"}').stuck, null)
+  assert.equal(parseJudgeReply('{"stuck": 1}').stuck, null)
+  assert.equal(parseJudgeReply('{"stuck": "true"}').stuck, null)
   assert.equal(parseJudgeReply('{"stuck": null, "confidence": -3}').confidence, 0)
   assert.equal(parseJudgeReply('{"stuck": true, "reason": "' + 'x'.repeat(500) + '"}').reason.length, 160)
   assert.equal(parseNudgeReply('  hello  '), 'hello')

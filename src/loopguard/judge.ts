@@ -114,8 +114,9 @@ function neverAbortedSignal(): AbortSignal {
  *
  * Upstream searches for `{.*}` (dotall, GREEDY -- the last closing brace wins), then reads the
  * object field by field; a malformed object leaves `{stuck: null, confidence: 0, reason: ""}`.
- * `stuck` keeps Python's `bool()` coercion: any non-null JSON value other than `false`/`0`/`""`
- * is "stuck", so a model that answers the string "false" is still read as stuck=true.
+ * SAFETY DEVIATION: upstream applies Python's `bool()` to `stuck`, so the string "false" (or
+ * the number `1`) would authorize an intervention. This parser accepts only a JSON boolean;
+ * every other type is ambiguous (`null`), which fails open to the free heuristic/envelope path.
  */
 export function parseJudgeReply(raw: string | null | undefined): JudgeVerdict {
   const verdict: JudgeVerdict = { stuck: null, confidence: 0, reason: '' }
@@ -130,9 +131,7 @@ export function parseJudgeReply(raw: string | null | undefined): JudgeVerdict {
   }
   if (typeof obj !== 'object' || obj === null || Array.isArray(obj)) return verdict
   const record = obj as Record<string, unknown>
-  if ('stuck' in record && record.stuck !== null && record.stuck !== undefined) {
-    verdict.stuck = Boolean(record.stuck)
-  }
+  if (typeof record.stuck === 'boolean') verdict.stuck = record.stuck
   try {
     verdict.confidence = clamp01(Number(record.confidence ?? 0) || 0)
   } catch {

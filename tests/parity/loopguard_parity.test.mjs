@@ -20,6 +20,7 @@ import {
   gateForJudge,
   isStuck,
   nudgeText,
+  parseJudgeReply,
   SpiralState,
   TurnGuard,
   basename,
@@ -90,6 +91,15 @@ test('assess_abort cascade matches upstream', { skip: !hasVectors }, () => {
     const actual = assessAbort(fakeState(c.state), c.envelope, judge, thr)
     assert.deepEqual(actual, c.expected, c.label)
   }
+})
+
+test('judge reply typing is excluded from the parity vectors', { skip: !hasVectors }, () => {
+  // The vectors feed typed verdicts straight into assessAbort. Raw judge JSON is not a
+  // parity surface: upstream applies Python bool(), which would read "false" as stuck.
+  // This port requires a real boolean and treats every other type as ambiguous.
+  assert.equal(parseJudgeReply('{"stuck": "false"}').stuck, null)
+  assert.equal(parseJudgeReply('{"stuck": 1}').stuck, null)
+  assert.equal(parseJudgeReply('{"stuck": true}').stuck, true)
 })
 
 test('nudge_text matches upstream', { skip: !hasVectors }, () => {
