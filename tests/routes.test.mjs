@@ -84,7 +84,11 @@ test('invalid actions, modes and missing ids are rejected with stable codes', as
   ]
   for (const [path, body, code] of cases) {
     const response = await routes.get(`${API_PREFIX}${path}`).fetch(
-      new Request(`http://localhost${API_PREFIX}${path}`, { method: 'POST', body: JSON.stringify(body) }),
+      new Request(`http://localhost${API_PREFIX}${path}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      }),
     )
     assert.equal(response.status, 400, `${path} ${JSON.stringify(body)}`)
     const parsed = await response.json()
@@ -97,13 +101,21 @@ test('malformed JSON and oversized bodies are rejected without reaching the serv
   const { api, calls } = fakeApi()
   const routes = routeMap(api)
   const malformed = await routes.get(`${API_PREFIX}/settings`).fetch(
-    new Request(`http://localhost${API_PREFIX}/settings`, { method: 'POST', body: '{not json' }),
+    new Request(`http://localhost${API_PREFIX}/settings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: '{not json',
+    }),
   )
   assert.equal(malformed.status, 400)
   assert.equal((await malformed.json()).error.code, 'BAD_REQUEST')
 
   const huge = await routes.get(`${API_PREFIX}/settings`).fetch(
-    new Request(`http://localhost${API_PREFIX}/settings`, { method: 'POST', body: 'x'.repeat(300_000) }),
+    new Request(`http://localhost${API_PREFIX}/settings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: 'x'.repeat(300_000),
+    }),
   )
   assert.ok(huge.status === 413 || huge.status === 400)
   assert.equal(calls.length, 0)
@@ -113,12 +125,20 @@ test('mode changes and settings patches reach the service', async () => {
   const { api, calls } = fakeApi()
   const routes = routeMap(api)
   const mode = await routes.get(`${API_PREFIX}/mode`).fetch(
-    new Request(`http://localhost${API_PREFIX}/mode`, { method: 'POST', body: JSON.stringify({ mode: 'active' }) }),
+    new Request(`http://localhost${API_PREFIX}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ mode: 'active' }),
+    }),
   )
   assert.deepEqual(await mode.json(), { ok: true, mode: 'active' })
 
   const settings = await routes.get(`${API_PREFIX}/settings`).fetch(
-    new Request(`http://localhost${API_PREFIX}/settings`, { method: 'POST', body: JSON.stringify({ patch: { microskillsInject: true } }) }),
+    new Request(`http://localhost${API_PREFIX}/settings`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ patch: { microskillsInject: true } }),
+    }),
   )
   assert.equal(settings.status, 200)
   assert.deepEqual(calls, [
@@ -167,4 +187,67 @@ test('a missing Connection service is reported, not thrown', () => {
   registerRoutes(ctx, fakeApi().api, { warn: (message) => warnings.push(message) })
   pending({ effect() {} })
   assert.match(warnings[0], /connection\.fetch is unavailable/)
+})
+
+
+test('POST requires application/json', async () => {
+  const { api, calls } = fakeApi()
+  const routes = routeMap(api)
+  for (const contentType of [undefined, 'text/plain', 'application/x-www-form-urlencoded']) {
+    const headers = contentType ? { 'content-type': contentType } : {}
+    const response = await routes.get(`${API_PREFIX}/mode`).fetch(
+      new Request(`http://localhost${API_PREFIX}/mode`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ mode: 'active' }),
+      }),
+    )
+    assert.equal(response.status, 415, String(contentType))
+    assert.equal((await response.json()).error.code, 'UNSUPPORTED_MEDIA_TYPE')
+  }
+  assert.equal(calls.length, 0)
+})
+
+test('POST accepts application/json with a charset parameter', async () => {
+  const { api } = fakeApi()
+  const response = await routeMap(api).get(`${API_PREFIX}/mode`).fetch(
+    new Request(`http://localhost${API_PREFIX}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'Application/JSON; charset=UTF-8' },
+      body: JSON.stringify({ mode: 'active' }),
+    }),
+  )
+  assert.equal(response.status, 200)
+})
+
+test('a foreign Origin is rejected with 403', async () => {
+  const { api, calls } = fakeApi()
+  const routes = routeMap(api)
+  const post = await routes.get(`${API_PREFIX}/mode`).fetch(
+    new Request(`http://localhost${API_PREFIX}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'https://evil.example' },
+      body: JSON.stringify({ mode: 'active' }),
+    }),
+  )
+  assert.equal(post.status, 403)
+  assert.equal((await post.json()).error.code, 'FORBIDDEN')
+
+  const get = await routes.get(`${API_PREFIX}/status`).fetch(
+    new Request(`http://localhost${API_PREFIX}/status`, { headers: { origin: 'https://evil.example' } }),
+  )
+  assert.equal(get.status, 403)
+  assert.equal(calls.length, 0)
+})
+
+test('a same-origin Origin is allowed', async () => {
+  const { api } = fakeApi()
+  const response = await routeMap(api).get(`${API_PREFIX}/mode`).fetch(
+    new Request(`http://localhost${API_PREFIX}/mode`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: 'http://localhost' },
+      body: JSON.stringify({ mode: 'active' }),
+    }),
+  )
+  assert.equal(response.status, 200)
 })
