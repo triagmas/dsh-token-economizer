@@ -36,6 +36,7 @@
     "icon.svg",
     "README.md",
     "REVIEW.md",
+    "SECURITY.md",
     "LICENSE",
     "NOTICE",
     "docs/**/*.md",

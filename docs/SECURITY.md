@@ -112,5 +112,6 @@ They cannot grant tools, change policy, or disable the guard.
 
 ## Reporting
 
-Security issues should be reported privately to the plugin maintainer. Do not
-include real credentials in reports; redact them first.
+See the repository-root [SECURITY.md](../SECURITY.md) for the private reporting
+channel (GitHub Security Advisories → **Report a vulnerability**), what must not
+be published, and the best-effort response expectations.
