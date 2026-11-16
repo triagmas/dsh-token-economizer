@@ -30,7 +30,7 @@ import { resolveConfig, Config } from './config/schema.js'
 export { Config }
 
 export const name = 'token-economizer'
-export const version = '0.1.0'
+export const version = '0.1.1'
 
 type AnyRecord = Record<string, unknown>
 

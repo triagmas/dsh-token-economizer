@@ -1,6 +1,6 @@
 {
   "name": "dsh-token-economizer",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Experience-driven cost control for DeepSeek Harness: micro-skills, tool pruning, and a failure-loop guard with local-only measurement.",
   "type": "module",
   "license": "Apache-2.0",

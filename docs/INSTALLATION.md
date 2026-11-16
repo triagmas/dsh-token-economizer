@@ -43,7 +43,7 @@ dsh plugin --profile web add github:triagmas/dsh-token-economizer
 ```bash
 cd /path/to/dsh-token-economizer
 npm pack
-dsh plugin --profile web add file:/path/to/dsh-token-economizer/dsh-token-economizer-0.1.0.tgz
+dsh plugin --profile web add file:/path/to/dsh-token-economizer/dsh-token-economizer-0.1.1.tgz
 ```
 
 The package must contain `lib/`, `client/`, `locale/`, `icon.svg`,

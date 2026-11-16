@@ -3,6 +3,25 @@
 All notable changes to this plugin are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versions use SemVer.
 
+## [0.1.1] - 2026-11-16
+
+### Fixed
+
+- **Multibyte redaction is capped in one pass.** `capToBytes` now slices and
+  backs up to a UTF-8 boundary instead of rescanning every prefix, so a large
+  non-ASCII payload stays linear; the test asserts a bounded number of
+  `Buffer.byteLength` calls and no replacement character.
+- **Finished turns serialize both state files.** `finishTurn` now runs tool
+  statistics and micro-skill lifecycle inside `ProjectStore.updateTools` and
+  `updateSkills`. A cached read can no longer overwrite counters or facts
+  written by another DSH process; regression tests force a stale cache and
+  keep both values.
+- **Inherited configuration keys are rejected.** `updateSettings` uses
+  `Object.hasOwn` for both tables, so `constructor`, `toString` and
+  `__proto__` fail as unknown keys. Numeric bounds in `resolveConfig` come from
+  `CONFIG_FIELD_RULES`; a test keeps the rule table, schemastery schema and
+  defaults in lockstep.
+
 ## [Unreleased]
 
 ### Upstream drift after the pinned revision
