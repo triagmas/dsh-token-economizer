@@ -378,6 +378,19 @@ function oneOf<T extends string>(value: unknown, allowed: readonly T[], fallback
   return allowed.includes(plain as T) ? (plain as T) : fallback
 }
 
+type NumberConfigKey = {
+  [K in keyof ResolvedConfig]: ResolvedConfig[K] extends number ? K : never
+}[keyof ResolvedConfig]
+
+/** Numeric bounds and defaults come from the same table the settings validator uses. */
+function numberField(source: Record<string, unknown>, key: NumberConfigKey): number {
+  const rule = CONFIG_FIELD_RULES[key]
+  if (rule.type !== 'number' || rule.min === undefined || rule.max === undefined) {
+    throw new Error(`config field ${key} has no numeric rule`)
+  }
+  return num(source[key], CONFIG_DEFAULTS[key], rule.min, rule.max)
+}
+
 /** Snapshot the live plugin config into the engine's plain-value contract. */
 export function resolveConfig(raw: Record<string, unknown> | undefined | null): ResolvedConfig {
   const source = raw ?? {}
@@ -391,26 +404,21 @@ export function resolveConfig(raw: Record<string, unknown> | undefined | null): 
       ['envfacts', 'distiller', 'envfacts+distiller'] as const,
       CONFIG_DEFAULTS.microskillsProfile,
     ),
-    microskillsMaxFacts: num(source.microskillsMaxFacts, CONFIG_DEFAULTS.microskillsMaxFacts, 0, 50),
-    microskillsMaxTokens: num(source.microskillsMaxTokens, CONFIG_DEFAULTS.microskillsMaxTokens, 0, 4000),
-    microskillsMinConfirmations: num(
-      source.microskillsMinConfirmations,
-      CONFIG_DEFAULTS.microskillsMinConfirmations,
-      1,
-      10,
-    ),
-    microskillsRetireDays: num(source.microskillsRetireDays, CONFIG_DEFAULTS.microskillsRetireDays, 0, 3650),
+    microskillsMaxFacts: numberField(source, 'microskillsMaxFacts'),
+    microskillsMaxTokens: numberField(source, 'microskillsMaxTokens'),
+    microskillsMinConfirmations: numberField(source, 'microskillsMinConfirmations'),
+    microskillsRetireDays: numberField(source, 'microskillsRetireDays'),
     toolpruneEnabled: bool(source.toolpruneEnabled, CONFIG_DEFAULTS.toolpruneEnabled),
     toolpruneMode: oneOf(
       source.toolpruneMode,
       ['disabled', 'observe', 'propose', 'automatic'] as const,
       CONFIG_DEFAULTS.toolpruneMode,
     ),
-    toolpruneEvidence: num(source.toolpruneEvidence, CONFIG_DEFAULTS.toolpruneEvidence, 1, 100),
-    toolpruneMinSessions: num(source.toolpruneMinSessions, CONFIG_DEFAULTS.toolpruneMinSessions, 1, 100),
-    toolpruneSessions: num(source.toolpruneSessions, CONFIG_DEFAULTS.toolpruneSessions, 1, 100),
-    toolpruneQuietMinutes: num(source.toolpruneQuietMinutes, CONFIG_DEFAULTS.toolpruneQuietMinutes, 0, 10080),
-    toolpruneReauditEvery: num(source.toolpruneReauditEvery, CONFIG_DEFAULTS.toolpruneReauditEvery, 0, 1000),
+    toolpruneEvidence: numberField(source, 'toolpruneEvidence'),
+    toolpruneMinSessions: numberField(source, 'toolpruneMinSessions'),
+    toolpruneSessions: numberField(source, 'toolpruneSessions'),
+    toolpruneQuietMinutes: numberField(source, 'toolpruneQuietMinutes'),
+    toolpruneReauditEvery: numberField(source, 'toolpruneReauditEvery'),
     toolpruneAllowlist: Array.isArray(allowlist)
       ? allowlist.filter((item): item is string => typeof item === 'string' && item.trim() !== '').map((item) => item.trim())
       : [],
@@ -422,33 +430,18 @@ export function resolveConfig(raw: Record<string, unknown> | undefined | null): 
       CONFIG_DEFAULTS.loopguardLevel,
     ),
     loopguardJudge: bool(source.loopguardJudge, CONFIG_DEFAULTS.loopguardJudge),
-    loopguardConfidence: num(source.loopguardConfidence, CONFIG_DEFAULTS.loopguardConfidence, 0.5, 1),
-    loopguardMaxInterventions: num(
-      source.loopguardMaxInterventions,
-      CONFIG_DEFAULTS.loopguardMaxInterventions,
-      0,
-      5,
-    ),
-    loopguardJudgeTimeoutMs: num(source.loopguardJudgeTimeoutMs, CONFIG_DEFAULTS.loopguardJudgeTimeoutMs, 1000, 120000),
-    loopguardNudgeMaxTokens: num(source.loopguardNudgeMaxTokens, CONFIG_DEFAULTS.loopguardNudgeMaxTokens, 20, 1000),
+    loopguardConfidence: numberField(source, 'loopguardConfidence'),
+    loopguardMaxInterventions: numberField(source, 'loopguardMaxInterventions'),
+    loopguardJudgeTimeoutMs: numberField(source, 'loopguardJudgeTimeoutMs'),
+    loopguardNudgeMaxTokens: numberField(source, 'loopguardNudgeMaxTokens'),
     subagentsEnabled: bool(source.subagentsEnabled, CONFIG_DEFAULTS.subagentsEnabled),
     judgeProvider: str(source.judgeProvider, CONFIG_DEFAULTS.judgeProvider).trim(),
     judgeModel: str(source.judgeModel, CONFIG_DEFAULTS.judgeModel).trim(),
-    maxOverheadTokensPerTurn: num(
-      source.maxOverheadTokensPerTurn,
-      CONFIG_DEFAULTS.maxOverheadTokensPerTurn,
-      0,
-      200000,
-    ),
-    maxOverheadTokensPerSession: num(
-      source.maxOverheadTokensPerSession,
-      CONFIG_DEFAULTS.maxOverheadTokensPerSession,
-      0,
-      2000000,
-    ),
+    maxOverheadTokensPerTurn: numberField(source, 'maxOverheadTokensPerTurn'),
+    maxOverheadTokensPerSession: numberField(source, 'maxOverheadTokensPerSession'),
     storeEvidence: bool(source.storeEvidence, CONFIG_DEFAULTS.storeEvidence),
-    retentionDays: num(source.retentionDays, CONFIG_DEFAULTS.retentionDays, 1, 3650),
-    maxMetricsBytes: num(source.maxMetricsBytes, CONFIG_DEFAULTS.maxMetricsBytes, 262144, 268435456),
+    retentionDays: numberField(source, 'retentionDays'),
+    maxMetricsBytes: numberField(source, 'maxMetricsBytes'),
     priceTable: str(source.priceTable, CONFIG_DEFAULTS.priceTable),
     debug: bool(source.debug, CONFIG_DEFAULTS.debug),
   }

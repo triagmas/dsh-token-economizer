@@ -1010,24 +1010,23 @@ export class EconomizerService implements EconomizerApi {
       return []
     }
     const runtime = await this.projectRuntime(project, config)
-    const file = await project.loadTools()
     const reaudit = runtime.reauditPending === true
     runtime.reauditPending = false
     // Only hides that were applied at a session boundary are visible here. Fresh
     // evidence waits in `file.autoPending`; recomputing it mid-session would shrink the
     // catalog the running prompt cache was built against (upstream `denylist.py`).
-    const deny = appliedDenySet(file, config)
-    let changed = false
-    for (const name of [...file.pruned]) {
-      if (allowlistMatches(name, config.toolpruneAllowlist) && unmarkPruned(file, name)) changed = true
-    }
-    const same =
-      file.pruned.length === deny.length && file.pruned.every((name, index) => name === deny[index])
-    if (!same) {
-      file.pruned = deny
-      changed = true
-    }
-    if (changed) await project.saveTools(file)
+    // updateTools re-reads under the cross-process lock: a cached row must not overwrite
+    // counters written by a parallel turn.
+    const deny = await project.updateTools((file) => {
+      const current = appliedDenySet(file, config)
+      for (const name of [...file.pruned]) {
+        if (allowlistMatches(name, config.toolpruneAllowlist)) unmarkPruned(file, name)
+      }
+      const same =
+        file.pruned.length === current.length && file.pruned.every((name, index) => name === current[index])
+      if (!same) file.pruned = current
+      return current
+    })
     // A re-audit turn shows the full catalog once; the persisted hides resume on the
     // next reconcile.
     return reaudit ? [] : deny
@@ -1035,15 +1034,10 @@ export class EconomizerService implements EconomizerApi {
 
   /** Clear every persisted hide when mutations are off or not automatic. */
   private async clearPruned(project: ProjectStore): Promise<void> {
-    const file = await project.loadTools()
-    if (!file.pruned.length && !file.autoPending) return
-    let changed = false
-    for (const name of [...file.pruned]) changed = unmarkPruned(file, name) || changed
-    if (file.autoPending) {
+    await project.updateTools((file) => {
+      for (const name of [...file.pruned]) unmarkPruned(file, name)
       file.autoPending = null
-      changed = true
-    }
-    if (changed) await project.saveTools(file)
+    })
   }
 
   /** Load the persisted block for a project at session start. */
@@ -1534,7 +1528,9 @@ export class EconomizerService implements EconomizerApi {
     }
     const validated: Record<string, unknown> = {}
     for (const [key, value] of Object.entries(patch)) {
-      if (!(key in CONFIG_DEFAULTS)) throw errorCode('BAD_REQUEST', `Unknown configuration key "${key}".`)
+      if (!Object.hasOwn(CONFIG_DEFAULTS, key) || !Object.hasOwn(CONFIG_FIELD_RULES, key)) {
+        throw errorCode('BAD_REQUEST', `Unknown configuration key "${key}".`)
+      }
       const rule = CONFIG_FIELD_RULES[key as keyof ResolvedConfig]
       if (rule.type === 'enum') {
         const options = rule.options ?? []

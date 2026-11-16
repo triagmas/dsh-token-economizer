@@ -71,12 +71,18 @@ function redactPrivateKeyBlocks(text: string): string {
   return out + text.slice(cursor)
 }
 
+/** Cut text to a UTF-8 byte budget without splitting the final character. */
+function capToBytes(text: string, maxBytes: number): string {
+  if (text.length <= maxBytes && Buffer.byteLength(text, 'utf8') <= maxBytes) return text
+  const buf = Buffer.from(text.slice(0, maxBytes), 'utf8')
+  let end = Math.min(buf.length, maxBytes)
+  while (end > 0 && end < buf.length && (buf[end] & 0xc0) === 0x80) end -= 1
+  return buf.subarray(0, end).toString('utf8')
+}
+
 /** Cut an oversized input on a character boundary before any regex runs. */
 function capForRedaction(text: string): string {
-  if (Buffer.byteLength(text, 'utf8') <= MAX_REDACTION_BYTES) return text
-  let end = Math.min(text.length, MAX_REDACTION_BYTES)
-  while (end > 0 && Buffer.byteLength(text.slice(0, end), 'utf8') > MAX_REDACTION_BYTES) end -= 1
-  return text.slice(0, end)
+  return capToBytes(text, MAX_REDACTION_BYTES)
 }
 
 /** Redact secrets in a text. The `filter` escape hatch keeps patterns that
@@ -108,9 +114,7 @@ export function sanitizeText(text: string, policy: RedactionPolicy = DEFAULT_RED
   const redacted = policy.redactSecrets ? redactSecrets(raw) : raw
   const clean = stripControlCharacters(redacted)
   if (Buffer.byteLength(clean, 'utf8') <= policy.maxTextBytes) return clean
-  let end = Math.min(clean.length, policy.maxTextBytes)
-  while (end > 0 && Buffer.byteLength(clean.slice(0, end), 'utf8') > policy.maxTextBytes) end -= 1
-  return `${clean.slice(0, end)}\n…[truncated]`
+  return `${capToBytes(clean, policy.maxTextBytes)}\n…[truncated]`
 }
 
 /** Mask a free-form value for display in the UI. */

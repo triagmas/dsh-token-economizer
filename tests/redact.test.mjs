@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   DEFAULT_REDACTION,
+  MAX_REDACTION_BYTES,
   isSensitivePath,
   maskValue,
   redactSecrets,
@@ -104,6 +105,24 @@ test('Authorization Basic, Token and Bearer schemes are redacted', () => {
     assert.doesNotMatch(output, /abcdefghijklmnop/, scheme)
     assert.match(output, /\[REDACTED\]/, scheme)
   }
+})
+
+test('non-ASCII truncation does not rescan every prefix', () => {
+  const original = Buffer.byteLength
+  let calls = 0
+  Buffer.byteLength = function (...args) {
+    calls += 1
+    return original.apply(this, args)
+  }
+  let output
+  try {
+    output = redactSecrets('\u6f22'.repeat(90_000))
+  } finally {
+    Buffer.byteLength = original
+  }
+  assert.ok(Buffer.byteLength(output, 'utf8') <= MAX_REDACTION_BYTES)
+  assert.ok(!output.includes('\uFFFD'), 'no character may be split')
+  assert.ok(calls <= 4, `byteLength was called ${calls} times`)
 })
 
 test('one megabyte of unclosed private-key headers stays fast', () => {

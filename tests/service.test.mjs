@@ -388,6 +388,10 @@ test('settings expose and enforce the schema ranges', async () => {
 test('settings validation rejects unknown keys, bad enums and bad types', async () => {
   const env = await setup()
   try {
+    for (const key of ['constructor', 'toString', '__proto__']) {
+      const patch = JSON.parse(`{"${key}": 1}`)
+      await assert.rejects(() => env.service.updateSettings(patch), /Unknown configuration key/, key)
+    }
     await assert.rejects(() => env.service.updateSettings({ nope: 1 }), /Unknown configuration key/)
     await assert.rejects(() => env.service.updateSettings({ mode: 'sometimes' }), /must be one of/)
     await assert.rejects(() => env.service.updateSettings({ microskillsEnabled: 'yes' }), /must be a boolean/)
@@ -1115,6 +1119,47 @@ test('an allowlist entry wins over a pending automatic hide', async () => {
     tools = await project.loadTools()
     assert.equal(tools.pruned.includes('rare_tool'), false)
     assert.equal(tools.autoPending, null)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('denySetForSession re-reads tools before clearing an allowlisted hide', async () => {
+  const env = await setup({ mode: 'active', toolpruneMode: 'automatic', toolpruneAllowlist: ['rare_tool'] })
+  try {
+    const project = await env.store.project(PROJECT)
+    await project.updateTools((file) => {
+      file.tools.rare_tool = {
+        name: 'rare_tool',
+        descriptionTokens: 900,
+        calls: 0,
+        successes: 0,
+        failures: 0,
+        sessions: 0,
+        sessionsAvailable: 3,
+        unusedSessions: 3,
+        unusedPrompts: 1,
+        lastUsedAt: null,
+        lastUsedSeq: null,
+        pruned: true,
+        pruneReason: 'evidence',
+        protected: false,
+        allowlisted: true,
+        scoped: false,
+      }
+      file.pruned = ['rare_tool']
+    })
+
+    const other = new Store({ DSH_HOME: env.home })
+    const otherProject = await other.project(PROJECT)
+    await otherProject.updateTools((file) => {
+      file.tools.rare_tool.unusedPrompts = 42
+    })
+
+    env.service.registerRoot('session-4', PROJECT)
+    assert.deepEqual(await env.service.denySetForSession('session-4'), [])
+    const persisted = await new Store({ DSH_HOME: env.home }).project(PROJECT)
+    assert.equal((await persisted.loadTools()).tools.rare_tool.unusedPrompts, 42)
   } finally {
     await rm(env.home, { recursive: true, force: true })
   }
