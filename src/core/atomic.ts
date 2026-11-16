@@ -159,18 +159,22 @@ export async function listFiles(dir: string): Promise<string[]> {
 
 /**
  * Run `fn` while holding `<target>.lock` exclusively.
- * A lock older than {@link LOCK_STALE_MS} is reclaimed; contention is bounded
- * and reported as a failed acquisition instead of blocking the agent forever.
+ *
+ * A lock is reclaimed only when its owner is gone (or when an unparseable lock
+ * is old enough); a live process is never evicted just because it holds the
+ * lock for a long time. The lock file carries a per-acquisition token so the
+ * releasing owner cannot unlink a successor's lock.
  */
 export async function withFileLock<T>(target: string, fn: () => Promise<T>): Promise<T> {
   const lockPath = `${target}.lock`
   const deadline = Date.now() + LOCK_TIMEOUT_MS
+  const token = randomBytes(8).toString('hex')
   let handle: Awaited<ReturnType<typeof open>> | undefined
   await ensureDir(dirname(lockPath))
   while (handle === undefined) {
     try {
       handle = await open(lockPath, 'wx', 0o600)
-      await handle.writeFile(`${process.pid} ${Date.now()}\n`, 'utf8')
+      await handle.writeFile(`${process.pid} ${Date.now()} ${token}\n`, 'utf8')
     } catch (error) {
       const code = (error as NodeJS.ErrnoException).code
       if (code !== 'EEXIST') throw error
@@ -186,7 +190,12 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
     return await fn()
   } finally {
     await handle.close().catch(() => undefined)
-    await unlink(lockPath).catch(() => undefined)
+    try {
+      const current = await readFile(lockPath, 'utf8')
+      if (current.trim().split(/\s+/)[2] === token) await unlink(lockPath).catch(() => undefined)
+    } catch {
+      // Another process already reclaimed or removed the lock.
+    }
   }
 }
 
@@ -194,8 +203,6 @@ async function isStale(lockPath: string): Promise<boolean> {
   try {
     const text = await readFile(lockPath, 'utf8')
     const [pidText, createdText] = text.trim().split(/\s+/)
-    const created = Number(createdText)
-    if (Number.isFinite(created) && Date.now() - created > LOCK_STALE_MS) return true
     const pid = Number(pidText)
     if (Number.isFinite(pid) && pid > 0) {
       try {
@@ -204,10 +211,13 @@ async function isStale(lockPath: string): Promise<boolean> {
       } catch (error) {
         const code = (error as NodeJS.ErrnoException).code
         // EPERM means the process exists but belongs to someone else.
-        return code !== 'EPERM'
+        if (code === 'EPERM') return false
+        // The owner is gone; its lock can be reclaimed immediately.
+        return true
       }
     }
-    return true
+    const created = Number(createdText)
+    return !Number.isFinite(created) || Date.now() - created > LOCK_STALE_MS
   } catch {
     return true
   }
