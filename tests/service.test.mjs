@@ -125,6 +125,46 @@ async function finishTurn(service, { sessionId = 'session-1', turn = 1, calls = 
   await service.flush()
 }
 
+test('finishTurn preserves tool state written by another process', async () => {
+  const env = await setup()
+  try {
+    const other = new Store({ DSH_HOME: env.home })
+    const otherProject = await other.project(PROJECT)
+    await otherProject.updateTools((file) => {
+      file.lastAuditTask = 77
+    })
+
+    await finishTurn(env.service, { calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+
+    const persisted = await new Store({ DSH_HOME: env.home }).project(PROJECT)
+    assert.equal((await persisted.loadTools()).lastAuditTask, 77)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
+test('finishTurn preserves skill state written while the turn was in flight', async () => {
+  const env = await setup()
+  try {
+    const project = await env.store.project(PROJECT)
+    const staleSkills = await project.loadSkills()
+
+    const other = new Store({ DSH_HOME: env.home })
+    const otherProject = await other.project(PROJECT)
+    await otherProject.updateSkills((file) => {
+      file.sessionTasks = { ...(file.sessionTasks ?? {}), 'other-session': 41 }
+    })
+
+    project.loadSkills = async () => staleSkills
+    await finishTurn(env.service, { calls: [call('edit', { path: '/work/economizer-project/a.ts' })] })
+
+    const persisted = await new Store({ DSH_HOME: env.home }).project(PROJECT)
+    assert.equal((await persisted.loadSkills()).sessionTasks['other-session'], 41)
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
+
 test('one finished turn persists model/tool metrics and surfaces honest totals', async () => {
   const env = await setup()
   try {
