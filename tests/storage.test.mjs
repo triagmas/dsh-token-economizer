@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, writeFile, mkdir } from 'node:fs/promises'
+import { mkdtemp, readFile, readdir, rm, writeFile, mkdir } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
@@ -330,6 +330,33 @@ test('two ProjectStore instances do not overwrite each other\'s fields', async (
     assert.equal(skills.lastBlock, 'kept-by-second', 'second writer keeps lastBlock')
     assert.deepEqual(tools.pruned, ['first-tool'], 'first writer keeps pruned')
     assert.equal(tools.lastAuditTask, 4, 'second writer keeps lastAuditTask')
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})
+
+test('a corrupt JSON file is quarantined before defaults replace it', async () => {
+  const root = await workspace()
+  try {
+    const env = { DSH_HOME: root }
+    await new Store(env).open('0.1.0', '0.2.2')
+    const projectRoot = join(root, 'work', 'corrupt')
+    await mkdir(projectRoot, { recursive: true })
+    const project = await new Store(env).project(projectRoot)
+    const skillsPath = join(project.dir, 'skills.json')
+    const original = '{"schemaVersion":1,"facts":['
+    await writeFile(skillsPath, original)
+
+    const skills = await project.loadSkills()
+    assert.deepEqual(skills.facts, [], 'defaults are used for this read')
+    assert.equal(existsSync(skillsPath), false, 'the unreadable file is moved aside, not overwritten later')
+    const quarantined = (await readdir(project.dir)).filter((name) => name.startsWith('skills.json.corrupt-'))
+    assert.equal(quarantined.length, 1, 'exactly one quarantined copy')
+    assert.equal(await readFile(join(project.dir, quarantined[0]), 'utf8'), original, 'the original bytes survive')
+
+    await project.saveSkills({ ...skills, lastBlock: 'after-quarantine' })
+    const fresh = await new Store(env).project(projectRoot)
+    assert.equal((await fresh.loadSkills()).lastBlock, 'after-quarantine', 'a normal write starts a fresh file')
   } finally {
     await rm(root, { recursive: true, force: true })
   }

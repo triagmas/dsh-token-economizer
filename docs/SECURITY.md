@@ -55,6 +55,9 @@ results.
   in-process cache.
 * JSONL logs rotate at a configurable byte cap; retention pruning deletes old
   metrics rows.
+* A JSON file that cannot be parsed is moved to `<name>.corrupt-<timestamp>`
+  and left on disk; the plugin continues with defaults instead of overwriting
+  the damaged file silently.
 * File permissions follow the user's umask; the directory is created by the
   plugin inside the user's home.
 
