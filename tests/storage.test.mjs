@@ -301,3 +301,36 @@ test('clearLoops writes an empty JSONL file, not a JSON array', async () => {
     await rm(root, { recursive: true, force: true })
   }
 })
+
+test('two ProjectStore instances do not overwrite each other\'s fields', async () => {
+  const root = await workspace()
+  try {
+    const env = { DSH_HOME: root }
+    await new Store(env).open('0.1.0', '0.2.2')
+    const projectRoot = join(root, 'work', 'concurrent')
+    await mkdir(projectRoot, { recursive: true })
+    const first = await new Store(env).project(projectRoot)
+    const second = await new Store(env).project(projectRoot)
+    await first.loadSkills()
+    await second.loadSkills()
+    await first.loadTools()
+    await second.loadTools()
+
+    await Promise.all([
+      first.updateSkills((file) => { file.taskIndex = 11 }),
+      second.updateSkills((file) => { file.lastBlock = 'kept-by-second' }),
+      first.updateTools((file) => { file.pruned = ['first-tool'] }),
+      second.updateTools((file) => { file.lastAuditTask = 4 }),
+    ])
+
+    const fresh = await new Store(env).project(projectRoot)
+    const skills = await fresh.loadSkills()
+    const tools = await fresh.loadTools()
+    assert.equal(skills.taskIndex, 11, 'first writer keeps taskIndex')
+    assert.equal(skills.lastBlock, 'kept-by-second', 'second writer keeps lastBlock')
+    assert.deepEqual(tools.pruned, ['first-tool'], 'first writer keeps pruned')
+    assert.equal(tools.lastAuditTask, 4, 'second writer keeps lastAuditTask')
+  } finally {
+    await rm(root, { recursive: true, force: true })
+  }
+})

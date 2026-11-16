@@ -157,25 +157,31 @@ export class ProjectStore {
     return this.path('loopguard.json')
   }
 
-  async loadSkills(): Promise<SkillsFile> {
-    if (this.skillsCache) return this.skillsCache
+  private async readSkillsFile(): Promise<SkillsFile> {
     const raw = await readJsonSafe<SkillsFile>(this.path('skills.json'), structuredClone(EMPTY_SKILLS))
     const file = migrateSkills({ ...EMPTY_SKILLS, ...raw, schemaVersion: raw.schemaVersion ?? SCHEMA_VERSION })
     file.facts = Array.isArray(file.facts) ? file.facts : []
+    return file
+  }
+
+  async loadSkills(): Promise<SkillsFile> {
+    if (this.skillsCache) return this.skillsCache
+    const file = await this.readSkillsFile()
     this.skillsCache = file
     return file
   }
 
   async saveSkills(file: SkillsFile): Promise<void> {
-    this.skillsCache = file
     await writeJsonAtomic(this.path('skills.json'), file)
+    this.skillsCache = file
   }
 
   /** Serialize a read-modify-write cycle on skills.json (in-process + cross-process). */
   async updateSkills<T>(fn: (file: SkillsFile) => Promise<T> | T): Promise<T> {
     return this.skillsMutex.run(async () => {
-      const file = await this.loadSkills()
       return withFileLock(this.path('skills.json'), async () => {
+        // Another process may have written while this instance held a stale cache.
+        const file = await this.readSkillsFile()
         const result = await fn(file)
         file.updatedAt = nowIso()
         await this.saveSkills(file)
@@ -184,25 +190,30 @@ export class ProjectStore {
     })
   }
 
-  async loadTools(): Promise<ToolsFile> {
-    if (this.toolsCache) return this.toolsCache
+  private async readToolsFile(): Promise<ToolsFile> {
     const raw = await readJsonSafe<ToolsFile>(this.path('tools.json'), structuredClone(EMPTY_TOOLS))
     const file = migrateTools({ ...EMPTY_TOOLS, ...raw, schemaVersion: raw.schemaVersion ?? SCHEMA_VERSION })
     file.tools = file.tools && typeof file.tools === 'object' ? file.tools : {}
     file.pruned = Array.isArray(file.pruned) ? file.pruned : []
+    return file
+  }
+
+  async loadTools(): Promise<ToolsFile> {
+    if (this.toolsCache) return this.toolsCache
+    const file = await this.readToolsFile()
     this.toolsCache = file
     return file
   }
 
   async saveTools(file: ToolsFile): Promise<void> {
-    this.toolsCache = file
     await writeJsonAtomic(this.path('tools.json'), file)
+    this.toolsCache = file
   }
 
   async updateTools<T>(fn: (file: ToolsFile) => Promise<T> | T): Promise<T> {
     return this.toolsMutex.run(async () => {
-      const file = await this.loadTools()
       return withFileLock(this.path('tools.json'), async () => {
+        const file = await this.readToolsFile()
         const result = await fn(file)
         file.updatedAt = nowIso()
         await this.saveTools(file)

@@ -49,7 +49,10 @@ results.
 * All persistence is under `<DSH_HOME>/token-economizer/`.
 * Nothing is written into the workspace, the DSH installation, other profiles,
   or other plugins' data.
-* Writes are atomic; concurrent processes are serialized with lock files.
+* Writes are atomic. An update takes a lock file and re-reads the current
+  `skills.json`/`tools.json` under that lock before applying the change, so
+  concurrent DSH sessions do not overwrite each other's fields with a stale
+  in-process cache.
 * JSONL logs rotate at a configurable byte cap; retention pruning deletes old
   metrics rows.
 * File permissions follow the user's umask; the directory is created by the
