@@ -87,7 +87,7 @@ Requirements: DSH `>=0.2.0 <0.3.0`, Node.js 22+.
 
 Settings → **Token economizer** (five tabs, English and Russian):
 
-* **Overview** — mode, measurement totals, mechanism counters, budget and honest notes, with a compact six-column metric table.
+* **Overview** — mode, measurement totals, mechanism counters, a session-scoped overhead budget and honest notes, with a compact six-column per-turn table.
 * **Micro-skills** — confirmed facts, pending candidates, confirm/reject/clear.
 * **Tools** — compact usage summary, calls/evidence, status and restore, pruning mode; protected names collapse into one summary line.
 * **Loop guard** — incidents, judge usage, redirect history.

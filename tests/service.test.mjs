@@ -1318,3 +1318,59 @@ test('tracked sessions and roots stay bounded', async () => {
     await rm(env.home, { recursive: true, force: true })
   }
 })
+
+test('overview aggregates each recent turn and budget is per session', async () => {
+  const env = await setup({
+    priceTable: JSON.stringify({ 'openai/gpt-5.4': { input: 1, output: 4, cacheRead: 0.1, cacheWrite: 1.25 } }),
+  })
+  try {
+    await finishTurn(env.service, {
+      turn: 1,
+      calls: [
+        call('edit', { path: '/work/economizer-project/a.ts' }),
+        call('bash', { command: 'pnpm test' }, true, 'FAILED'),
+      ],
+    })
+    const project = await env.store.project(PROJECT)
+    const projectId = project.meta.projectId
+    const usage = (tokens) => ({
+      inputTokens: tokens, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0, reasoningTokens: 0, totalTokens: tokens,
+    })
+    const row = (sessionId, at, kind, extra = {}) => ({
+      schemaVersion: SCHEMA_VERSION,
+      at,
+      sessionId,
+      rootSessionId: sessionId,
+      delegationDepth: 0,
+      isSubagent: false,
+      projectId,
+      kind,
+      ...extra,
+    })
+    await project.appendMetrics([
+      row('session-1', '2026-01-02T00:00:00.000Z', 'plugin', { pluginUsage: usage(100) }),
+      row('session-1', '2026-01-02T00:00:00.000Z', 'turn-end'),
+      row('session-1', '2026-01-02T00:01:00.000Z', 'plugin', { pluginUsage: usage(30) }),
+      row('session-1', '2026-01-02T00:01:00.000Z', 'turn-end'),
+      row('session-2', '2026-01-02T00:02:00.000Z', 'plugin', { pluginUsage: usage(500) }),
+      row('session-2', '2026-01-02T00:02:00.000Z', 'turn-end'),
+    ], 1_000_000)
+
+    const overview = await env.service.overview({ sessionId: 'session-1' })
+    const turn = overview.recent.find((point) => point.at === '2026-01-01T00:01:00.000Z')
+    assert.ok(turn, 'the finished turn has one aggregated point')
+    assert.equal(turn.modelRequests, 1)
+    assert.equal(turn.toolCalls, 2, 'both tool calls are counted on the same point')
+    assert.equal(turn.toolErrors, 1)
+    assert.ok(turn.effectiveTokens > 0, 'effective tokens are aggregated, not null')
+    assert.ok(turn.costUsd > 0, 'configured prices produce a per-turn cost')
+    assert.equal(overview.recent.at(-1).at, '2026-01-02T00:02:00.000Z')
+
+    const status = await env.service.status({ sessionId: 'session-1' })
+    assert.equal(status.budget.sessionTokens, 130, 'only this session counts toward the session budget')
+    assert.equal(status.budget.turnTokens, 30, 'the last turn of this session, not another session')
+    assert.equal(status.budget.overheadTokens, 630, 'project overhead remains visible separately')
+  } finally {
+    await rm(env.home, { recursive: true, force: true })
+  }
+})
