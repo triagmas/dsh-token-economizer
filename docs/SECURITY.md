@@ -103,7 +103,11 @@ Learned facts are untrusted text that originated in tool output. They are:
   checks (a failing command plus a corrected one, a resolved error class, an
   environment fact).
 
-They cannot grant tools, change policy, or disable the guard.
+A written loop redirect is model text that will be delivered to the agent, so
+links, markdown fence markers and ANSI/C0 controls are stripped, the rest is
+capped at 1200 characters, and an answer that sanitizes to nothing is replaced
+by the deterministic count template. Learned facts and redirects cannot grant
+tools, change policy, or disable the guard.
 
 ## Disable and uninstall
 

@@ -118,7 +118,12 @@ session concept, matching upstream.
    loopguard parity vectors feed already-typed verdicts into `assessAbort`, so
    raw judge JSON is deliberately excluded from that comparison; the strict
    parser is covered by unit and parity-guard tests instead.
-7. **Not ported, by scope.** The following upstream components are deliberately
+7. **Sanitized written redirect (safety deviation).** Upstream returns the
+   nudge writer's reply verbatim. This port delivers it through `agent.steer()`,
+   so links, markdown fence markers and control sequences are stripped, the
+   result is capped at 1200 characters, and an empty result falls back to the
+   deterministic `nudgeText` count template.
+8. **Not ported, by scope.** The following upstream components are deliberately
    absent rather than silently emulated:
    * `microskills`: the paid proposer is not called automatically (its digest,
      extractor and prompts are ported; the caller may pass proposed facts).
