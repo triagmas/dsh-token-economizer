@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -65,4 +65,68 @@ test('withFileLock does not steal a live lock after the stale age', { timeout: 4
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
+})
+
+
+test('does not reclaim a fresh unparseable lock', { timeout: 20_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-empty-lock-'))
+  const target = join(dir, 'state.json')
+  const lockPath = `${target}.lock`
+  try {
+    await writeFile(lockPath, '')
+    let entered = false
+    const attempt = withFileLock(target, async () => {
+      entered = true
+    }).then(
+      () => 'acquired',
+      (error) => error,
+    )
+
+    await sleep(300)
+    const enteredEarly = entered
+    const outcome = await attempt
+    assert.equal(enteredEarly, false, 'fresh empty lock must not be treated as dead')
+    assert.ok(outcome instanceof Error, 'second owner must time out instead of entering')
+
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+    await withFileLock(target, async () => {
+      entered = true
+    })
+    assert.equal(entered, true, 'old unparseable lock is reclaimable')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('serializes stale-lock reclamation across contenders', { timeout: 30_000 }, async () => {
+  const rounds = 5
+  const contenders = 100
+  let overlaps = 0
+  let rejected = 0
+  for (let round = 0; round < rounds; round++) {
+    const dir = await mkdtemp(join(tmpdir(), 'te-reclaim-race-'))
+    const target = join(dir, 'state.json')
+    const lockPath = `${target}.lock`
+    try {
+      await writeFile(lockPath, '999999 0 old\n')
+      const old = new Date(Date.now() - 60_000)
+      await utimes(lockPath, old, old)
+      let active = 0
+      const tasks = Array.from({ length: contenders }, () =>
+        withFileLock(target, async () => {
+          active++
+          if (active > 1) overlaps++
+          await sleep(3)
+          active--
+        }),
+      )
+      const results = await Promise.allSettled(tasks)
+      rejected += results.filter((result) => result.status === 'rejected').length
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
+  assert.equal(rejected, 0, 'every contender must eventually acquire the lock')
+  assert.equal(overlaps, 0, 'stale-lock reclamation must not admit two owners')
 })

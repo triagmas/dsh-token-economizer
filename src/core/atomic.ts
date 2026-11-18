@@ -179,7 +179,10 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
       const code = (error as NodeJS.ErrnoException).code
       if (code !== 'EEXIST') throw error
       if (await isStale(lockPath)) {
-        await unlink(lockPath).catch(() => undefined)
+        if (!(await reclaimStaleLock(lockPath))) {
+          if (Date.now() >= deadline) throw new Error(`token-economizer: lock timeout on ${lockPath}`)
+          await sleep(LOCK_RETRY_MS + Math.floor(Math.random() * LOCK_RETRY_MS))
+        }
         continue
       }
       if (Date.now() >= deadline) throw new Error(`token-economizer: lock timeout on ${lockPath}`)
@@ -199,10 +202,37 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
   }
 }
 
+/**
+ * Reclaim a stale lock through a short-lived guard file, so two contenders
+ * cannot both remove the old lock and then race to remove the new owner's
+ * lock. The guard is only created when the main lock is already stale; a
+ * crash inside this tiny critical section can leave it behind, but cannot
+ * admit two owners.
+ */
+async function reclaimStaleLock(lockPath: string): Promise<boolean> {
+  const guardPath = `${lockPath}.reclaim`
+  let guard: Awaited<ReturnType<typeof open>> | undefined
+  try {
+    guard = await open(guardPath, 'wx', 0o600)
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
+    throw error
+  }
+  try {
+    // Re-check under the guard: another owner may have replaced the lock
+    // between the caller's isStale() call and this point.
+    if (await isStale(lockPath)) await unlink(lockPath).catch(() => undefined)
+    return true
+  } finally {
+    await guard.close().catch(() => undefined)
+    await unlink(guardPath).catch(() => undefined)
+  }
+}
+
 async function isStale(lockPath: string): Promise<boolean> {
   try {
     const text = await readFile(lockPath, 'utf8')
-    const [pidText, createdText] = text.trim().split(/\s+/)
+    const pidText = text.trim().split(/\s+/)[0]
     const pid = Number(pidText)
     if (Number.isFinite(pid) && pid > 0) {
       try {
@@ -216,10 +246,14 @@ async function isStale(lockPath: string): Promise<boolean> {
         return true
       }
     }
-    const created = Number(createdText)
-    return !Number.isFinite(created) || Date.now() - created > LOCK_STALE_MS
+    // A freshly opened lock is empty for a moment before its owner writes the
+    // PID. Treat an unparseable lock as stale only after the mtime threshold.
+    const info = await stat(lockPath)
+    return Date.now() - info.mtimeMs > LOCK_STALE_MS
   } catch {
-    return true
+    // A missing lock is not stale evidence: another contender may have
+    // removed it and already created a replacement. Treat it as "retry".
+    return false
   }
 }
 

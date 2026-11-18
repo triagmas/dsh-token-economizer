@@ -24,6 +24,15 @@ All notable changes to this plugin are recorded here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **A live lock owner is never evicted.** `isStale` checks the owning PID before
+  the lock age, and a release token prevents a former owner from unlinking a
+  successor's lock. Stale reclamation now runs through a short-lived guard;
+  an empty or partial lock is reclaimed only after `stat.mtime` exceeds the
+  15-second stale threshold. Regression tests cover a 16-second live hold, a
+  fresh empty lock, and 100 stale-lock contenders across five rounds.
+
 ### Upstream drift after the pinned revision
 
 - Audited `7042ea8..583fff7` in the vendored checkout without moving the pin.
