@@ -205,27 +205,98 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
 /**
  * Reclaim a stale lock through a short-lived guard file, so two contenders
  * cannot both remove the old lock and then race to remove the new owner's
- * lock. The guard is only created when the main lock is already stale; a
- * crash inside this tiny critical section can leave it behind, but cannot
- * admit two owners.
+ * lock. If the guard owner dies before cleanup, the next contender removes the
+ * guard only after confirming that the owning PID is dead (or, for an
+ * unparseable guard, after its mtime exceeds the stale threshold).
  */
 async function reclaimStaleLock(lockPath: string): Promise<boolean> {
   const guardPath = `${lockPath}.reclaim`
-  let guard: Awaited<ReturnType<typeof open>> | undefined
-  try {
-    guard = await open(guardPath, 'wx', 0o600)
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'EEXIST') return false
-    throw error
-  }
+  const guard = await acquireReclaimGuard(guardPath)
+  if (guard === undefined) return false
   try {
     // Re-check under the guard: another owner may have replaced the lock
     // between the caller's isStale() call and this point.
     if (await isStale(lockPath)) await unlink(lockPath).catch(() => undefined)
     return true
   } finally {
-    await guard.close().catch(() => undefined)
-    await unlink(guardPath).catch(() => undefined)
+    await guard.handle.close().catch(() => undefined)
+    try {
+      const current = await readFile(guardPath, 'utf8')
+      if (current.trim().split(/\s+/)[2] === guard.token) await unlink(guardPath).catch(() => undefined)
+    } catch {
+      // Another contender recovered a dead guard or already removed this one.
+    }
+  }
+}
+
+interface ReclaimGuard {
+  handle: Awaited<ReturnType<typeof open>>
+  token: string
+}
+
+/** Take the reclaim guard, recovering one left by a dead owner first. */
+async function acquireReclaimGuard(guardPath: string): Promise<ReclaimGuard | undefined> {
+  const token = randomBytes(8).toString('hex')
+  const tryOpen = async (): Promise<ReclaimGuard | undefined> => {
+    let handle: Awaited<ReturnType<typeof open>>
+    try {
+      handle = await open(guardPath, 'wx', 0o600)
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      return undefined
+    }
+    try {
+      await handle.writeFile(`${process.pid} ${Date.now()} ${token}\n`, 'utf8')
+    } catch (error) {
+      await handle.close().catch(() => undefined)
+      await unlink(guardPath).catch(() => undefined)
+      throw error
+    }
+    return { handle, token }
+  }
+
+  const first = await tryOpen()
+  if (first !== undefined) return first
+  if (!(await clearDeadReclaimGuard(guardPath))) return undefined
+  return tryOpen()
+}
+
+/** True when this call removed a guard whose owner is no longer alive. */
+async function clearDeadReclaimGuard(guardPath: string): Promise<boolean> {
+  let text: string
+  try {
+    text = await readFile(guardPath, 'utf8')
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === 'ENOENT'
+  }
+
+  const pidText = text.trim().split(/\s+/)[0]
+  const pid = Number(pidText)
+  if (Number.isFinite(pid) && pid > 0) {
+    try {
+      process.kill(pid, 0)
+      return false
+    } catch (error) {
+      // EPERM means the process exists but belongs to someone else.
+      if ((error as NodeJS.ErrnoException).code === 'EPERM') return false
+    }
+  } else {
+    try {
+      const info = await stat(guardPath)
+      if (Date.now() - info.mtimeMs <= LOCK_STALE_MS) return false
+    } catch {
+      return false
+    }
+  }
+
+  try {
+    // Do not delete a replacement guard created after the first read.
+    const current = await readFile(guardPath, 'utf8')
+    if (current !== text) return false
+    await unlink(guardPath)
+    return true
+  } catch {
+    return false
   }
 }
 

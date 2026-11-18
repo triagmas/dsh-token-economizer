@@ -53,7 +53,8 @@ results.
   `skills.json`/`tools.json` under that lock before applying the change, so
   concurrent DSH sessions do not overwrite each other's fields with a stale
   in-process cache. Stale-lock recovery checks the owner PID first, serializes
-  removal through a guard, and does not treat a fresh empty lock as dead.
+  removal through a guard, and does not treat a fresh empty lock as dead. A
+  guard left by a dead owner is recovered after checking that its PID is gone.
 * JSONL logs rotate at a configurable byte cap; retention pruning deletes old
   metrics rows.
 * A JSON file that cannot be parsed is moved to `<name>.corrupt-<timestamp>`

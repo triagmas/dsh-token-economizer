@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
+import { access, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -129,4 +129,54 @@ test('serializes stale-lock reclamation across contenders', { timeout: 30_000 },
   }
   assert.equal(rejected, 0, 'every contender must eventually acquire the lock')
   assert.equal(overlaps, 0, 'stale-lock reclamation must not admit two owners')
+})
+
+
+test('recovers a reclaim guard left by a dead owner', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-dead-guard-'))
+  const target = join(dir, 'state.json')
+  const lockPath = `${target}.lock`
+  const guardPath = `${lockPath}.reclaim`
+  try {
+    await writeFile(lockPath, '2147483647 0 old\n')
+    // A SIGKILL between guard creation and cleanup leaves exactly this:
+    // a guard naming a PID that no longer exists.
+    await writeFile(guardPath, '2147483647 0 dead\n')
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+
+    let entered = false
+    await withFileLock(target, async () => {
+      entered = true
+    })
+
+    assert.equal(entered, true, 'the next owner must recover a dead guard')
+    await assert.rejects(access(guardPath), 'the recovered guard must be gone')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('recovers an empty reclaim guard after the stale age', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-empty-guard-'))
+  const target = join(dir, 'state.json')
+  const lockPath = `${target}.lock`
+  const guardPath = `${lockPath}.reclaim`
+  try {
+    await writeFile(lockPath, '2147483647 0 old\n')
+    await writeFile(guardPath, '')
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+    await utimes(guardPath, old, old)
+
+    let entered = false
+    await withFileLock(target, async () => {
+      entered = true
+    })
+
+    assert.equal(entered, true, 'an old unparseable guard must be recoverable')
+    await assert.rejects(access(guardPath), 'the recovered guard must be gone')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
 })
