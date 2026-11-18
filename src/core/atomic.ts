@@ -6,7 +6,7 @@
  * keeps the agent running. No function here throws for a missing file.
  */
 import { link, open, readFile, readdir, rename, stat, unlink, writeFile, mkdir } from 'node:fs/promises'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 
 const LOCK_STALE_MS = 15_000
@@ -203,133 +203,160 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
 }
 
 /**
- * Reclaim a stale lock through a short-lived guard file, so two contenders
- * cannot both remove the old lock and then race to remove the new owner's
- * lock. The guard is created with a hard link so its full owner record is
- * visible atomically: there is no empty open-to-write window for a recovery
- * pass to mistake for an abandoned guard.
+ * Reclaim a stale lock with a per-contender intent file. Each contender writes
+ * an immutable, uniquely named record; the live record with the oldest
+ * creation time is the only one allowed to remove the stale main lock. A dead
+ * intent is ignored rather than deleted, so recovery never has to unlink a
+ * path that another live process may have reused.
+ *
+ * The election order is the intent's filesystem `ctimeNs`, captured after the
+ * hard link is made: a record linked later sorts after one linked earlier,
+ * even within the same millisecond. The temporary file is kept until the intent
+ * is removed, because unlinking it would change the inode's ctime.
  */
 async function reclaimStaleLock(lockPath: string): Promise<boolean> {
-  const guardPath = `${lockPath}.reclaim`
-  const guard = await acquireReclaimGuard(guardPath)
-  if (guard === undefined) return false
+  const intent = await createReclaimIntent(lockPath)
+  if (intent === undefined) return false
   try {
-    // Re-check under the guard: another owner may have replaced the lock
+    const intents = await listLiveReclaimIntents(lockPath)
+    if (intents[0]?.path !== intent.path) return false
+    // Re-check under the election: another owner may have replaced the lock
     // between the caller's isStale() call and this point.
     if (await isStale(lockPath)) await unlink(lockPath).catch(() => undefined)
     return true
   } finally {
-    try {
-      const current = await readFile(guardPath, 'utf8')
-      if (current.trim().split(/\s+/)[2] === guard.token) await unlink(guardPath).catch(() => undefined)
-    } catch {
-      // Another contender recovered a dead guard or already removed this one.
-    }
+    await removeReclaimIntent(intent)
   }
 }
 
-interface ReclaimGuard {
+interface ReclaimIntent {
+  path: string
+  tempPath: string
+  pid: number
+  createdAtNs: bigint
   token: string
 }
 
-/** Take the reclaim guard, recovering one left by a dead owner first. */
-async function acquireReclaimGuard(guardPath: string): Promise<ReclaimGuard | undefined> {
+/** Create an immutable intent with a complete record; no empty write window. */
+async function createReclaimIntent(lockPath: string): Promise<ReclaimIntent | undefined> {
   const token = randomBytes(8).toString('hex')
-  const tryCreate = async (): Promise<ReclaimGuard | undefined> => {
-    const tempPath = `${guardPath}.${process.pid}.${token}.tmp`
+  const path = `${lockPath}.reclaim.${process.pid}.${token}`
+  const tempPath = `${path}.tmp`
+  const createdAt = Date.now()
+  try {
+    await writeFile(tempPath, `${process.pid} ${createdAt} ${token}\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+    })
     try {
-      await writeFile(tempPath, `${process.pid} ${Date.now()} ${token}\n`, {
-        encoding: 'utf8',
-        mode: 0o600,
-      })
-      try {
-        // Atomic create with complete contents. Unlike open('wx') + writeFile,
-        // a contender can never observe an empty file between create and write.
-        await link(tempPath, guardPath)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-        return undefined
-      }
-      return { token }
-    } finally {
+      await link(tempPath, path)
+    } catch (error) {
       await unlink(tempPath).catch(() => undefined)
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+      return undefined
     }
+  } catch (error) {
+    await unlink(tempPath).catch(() => undefined)
+    throw error
   }
 
-  const first = await tryCreate()
-  if (first !== undefined) return first
-  if (!(await clearDeadReclaimGuard(guardPath))) return undefined
-  return tryCreate()
+  let createdAtNs = 0n
+  try {
+    createdAtNs = (await stat(path, { bigint: true })).ctimeNs
+  } catch {
+    // Fall back below; the intent is already published.
+  }
+  if (createdAtNs <= 0n) createdAtNs = BigInt(createdAt) * 1_000_000n
+  return { path, tempPath, pid: process.pid, createdAtNs, token }
 }
 
-/** True when this call removed a guard whose owner is no longer alive. */
-async function clearDeadReclaimGuard(guardPath: string): Promise<boolean> {
-  let text: string
+async function removeReclaimIntent(intent: ReclaimIntent): Promise<void> {
   try {
-    text = await readFile(guardPath, 'utf8')
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT'
+    const current = await readFile(intent.path, 'utf8')
+    if (current.trim().split(/\s+/)[2] === intent.token) await unlink(intent.path).catch(() => undefined)
+  } catch {
+    // Already gone; unique names have no replacement to protect.
+  } finally {
+    // Removing the temp link only after the intent is gone keeps its ctime
+    // stable while it participates in elections.
+    await unlink(intent.tempPath).catch(() => undefined)
+  }
+}
+
+/** Live intents ordered oldest first; dead and unparseable-old records are ignored. */
+async function listLiveReclaimIntents(lockPath: string): Promise<ReclaimIntent[]> {
+  const dir = dirname(lockPath)
+  const prefix = `${basename(lockPath)}.reclaim.`
+  let names: string[]
+  try {
+    names = await readdir(dir)
+  } catch {
+    return []
   }
 
-  const pidText = text.trim().split(/\s+/)[0]
-  const pid = Number(pidText)
-  if (Number.isFinite(pid) && pid > 0) {
-    try {
-      process.kill(pid, 0)
-      return false
-    } catch (error) {
-      // EPERM means the process exists but belongs to someone else.
-      if ((error as NodeJS.ErrnoException).code === 'EPERM') return false
-    }
-  } else {
-    try {
-      const info = await stat(guardPath)
-      if (Date.now() - info.mtimeMs <= LOCK_STALE_MS) return false
-    } catch {
-      return false
-    }
-  }
+  const intents = await Promise.all(
+    names
+      .filter((name) => name.startsWith(prefix) && !name.endsWith('.tmp'))
+      .map(async (name): Promise<ReclaimIntent | undefined> => {
+        const path = join(dir, name)
+        let text: string
+        try {
+          text = await readFile(path, 'utf8')
+        } catch {
+          return undefined
+        }
 
-  // Move the candidate to a private name and verify the inode/content there.
-  // A replacement guard is never unlinked: if the move caught one, it is put
-  // back with a hard link (or left in the tombstone if another guard already
-  // took its path).
-  const tombstone = `${guardPath}.dead-${process.pid}-${randomBytes(4).toString('hex')}`
-  let before: Awaited<ReturnType<typeof stat>>
-  try {
-    before = await stat(guardPath)
-  } catch {
-    return false
-  }
-  try {
-    const current = await readFile(guardPath, 'utf8')
-    if (current !== text) return false
-    await rename(guardPath, tombstone)
-  } catch {
-    return false
-  }
+        const [pidText, createdText, tokenText] = text.trim().split(/\s+/)
+        const pid = Number(pidText)
+        const token = tokenText ?? name
+        let createdAtNs = 0n
+        try {
+          createdAtNs = (await stat(path, { bigint: true })).ctimeNs
+        } catch {
+          return undefined
+        }
+        if (createdAtNs <= 0n) {
+          const contentCreatedAt = Number(createdText)
+          if (!Number.isFinite(contentCreatedAt) || contentCreatedAt <= 0) {
+            try {
+              createdAtNs = BigInt(Math.round((await stat(path)).mtimeMs)) * 1_000_000n
+            } catch {
+              return undefined
+            }
+          } else {
+            createdAtNs = BigInt(contentCreatedAt) * 1_000_000n
+          }
+        }
 
-  try {
-    const moved = await stat(tombstone)
-    const movedText = await readFile(tombstone, 'utf8')
-    if (moved.dev !== before.dev || moved.ino !== before.ino || movedText !== text) {
-      // We moved a replacement. Restore the same inode without overwriting a
-      // newer guard, and never unlink a replacement that we cannot restore.
-      try {
-        await link(tombstone, guardPath)
-        await unlink(tombstone).catch(() => undefined)
-      } catch {
-        // The path is occupied by yet another guard. Leave the tombstone; it
-        // is not the last link to the moved inode once restoration succeeds,
-        // and deleting it here could remove the only guard of a live owner.
-      }
-      return false
-    }
-    await unlink(tombstone).catch(() => undefined)
-    return true
-  } catch {
-    return false
-  }
+        let live = false
+        if (Number.isFinite(pid) && pid > 0) {
+          try {
+            process.kill(pid, 0)
+            live = true
+          } catch (error) {
+            // EPERM means the process exists but belongs to someone else.
+            live = (error as NodeJS.ErrnoException).code === 'EPERM'
+          }
+        } else {
+          try {
+            const info = await stat(path)
+            live = Date.now() - info.mtimeMs <= LOCK_STALE_MS
+          } catch {
+            return undefined
+          }
+        }
+        if (!live) return undefined
+        return { path, tempPath: `${path}.tmp`, pid: Number.isFinite(pid) ? pid : 0, createdAtNs, token }
+      }),
+  )
+
+  return intents
+    .filter((intent): intent is ReclaimIntent => intent !== undefined)
+    .sort((a, b) => {
+      if (a.createdAtNs < b.createdAtNs) return -1
+      if (a.createdAtNs > b.createdAtNs) return 1
+      return a.token.localeCompare(b.token) || a.pid - b.pid
+    })
 }
 
 async function isStale(lockPath: string): Promise<boolean> {

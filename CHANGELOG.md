@@ -28,14 +28,15 @@ All notable changes to this plugin are recorded here. The format follows
 
 - **A live lock owner is never evicted.** `isStale` checks the owning PID before
   the lock age, and a release token prevents a former owner from unlinking a
-  successor's lock. Stale reclamation now runs through a short-lived guard;
-  the guard is published by hard link with its complete owner record, and a
-  dead guard is recovered by renaming and verifying the inode before removal,
-  so recovery never unlinks a replacement guard. An empty or partial lock is
+  successor's lock. Stale reclamation now uses one immutable intent file per
+  contender; the oldest live intent removes the stale lock, and a dead intent is
+  ignored rather than deleted. Because no live intent path is ever reclaimed or
+  renamed, recovery cannot unlink a replacement. An empty or partial lock is
   reclaimed only after `stat.mtime` exceeds the 15-second stale threshold.
-  Regression tests cover a 16-second live hold, a fresh empty lock, a fresh
-  empty guard, a dead guard, an old empty guard, dead-guard contention,
-  old-empty-guard contention, and 100 stale-lock contenders across five rounds.
+  Regression tests cover a 16-second live hold, a fresh empty lock, a dead
+  intent, a live older intent that must block, a fresh empty intent, an old
+  empty intent, old-empty-intent contention, a legacy guard left untouched,
+  and 100 stale-lock contenders across five rounds.
 
 ### Upstream drift after the pinned revision
 
