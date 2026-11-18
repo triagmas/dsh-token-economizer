@@ -52,7 +52,11 @@ results.
 * Writes are atomic. An update takes a lock file and re-reads the current
   `skills.json`/`tools.json` under that lock before applying the change, so
   concurrent DSH sessions do not overwrite each other's fields with a stale
-  in-process cache.
+  in-process cache. Stale-lock recovery checks the owner PID first, serializes
+  removal through a guard, and does not treat a fresh empty lock as dead. The
+  guard is created with a hard link so its owner record is complete on
+  publication; a dead guard is renamed and its inode verified before removal,
+  so a replacement guard is never unlinked.
 * JSONL logs rotate at a configurable byte cap; retention pruning deletes old
   metrics rows.
 * A JSON file that cannot be parsed is moved to `<name>.corrupt-<timestamp>`
