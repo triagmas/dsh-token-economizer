@@ -180,3 +180,34 @@ test('recovers an empty reclaim guard after the stale age', { timeout: 15_000 },
     await rm(dir, { recursive: true, force: true })
   }
 })
+
+
+test('does not reclaim a fresh empty guard', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-fresh-guard-'))
+  const target = join(dir, 'state.json')
+  const lockPath = `${target}.lock`
+  const guardPath = `${lockPath}.reclaim`
+  try {
+    await writeFile(lockPath, '2147483647 0 old\n')
+    await writeFile(guardPath, '')
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+
+    let entered = false
+    const attempt = withFileLock(target, async () => {
+      entered = true
+    }).then(
+      () => 'acquired',
+      (error) => error,
+    )
+
+    await sleep(300)
+    const enteredEarly = entered
+    const outcome = await attempt
+    assert.equal(enteredEarly, false, 'a fresh guard must not be recovered')
+    assert.ok(outcome instanceof Error, 'the contender must time out')
+    assert.equal(await readFile(guardPath, 'utf8'), '', 'the guard must stay in place')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})

@@ -32,8 +32,8 @@ All notable changes to this plugin are recorded here. The format follows
   a guard left by a dead owner is recovered after confirming the PID is gone,
   and an empty or partial lock is reclaimed only after `stat.mtime` exceeds the
   15-second stale threshold. Regression tests cover a 16-second live hold, a
-  fresh empty lock, a dead guard, an old empty guard, and 100 stale-lock
-  contenders across five rounds.
+  fresh empty lock, a fresh empty guard, a dead guard, an old empty guard, and
+  100 stale-lock contenders across five rounds.
 
 ### Upstream drift after the pinned revision
 
