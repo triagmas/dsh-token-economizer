@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { access, mkdtemp, readFile, rm, unlink, utimes, writeFile } from 'node:fs/promises'
+import { access, appendFile, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -132,15 +132,15 @@ test('serializes stale-lock reclamation across contenders', { timeout: 30_000 },
 })
 
 
-test('ignores a reclaim intent left by a dead owner', { timeout: 15_000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'te-dead-intent-'))
+test('ignores a reclaim log record left by a dead owner', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-dead-record-'))
   const target = join(dir, 'state.json')
   const lockPath = `${target}.lock`
-  const intentPath = `${lockPath}.reclaim.2147483647.dead`
+  const logPath = `${lockPath}.reclaim.log`
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
-    // A SIGKILL leaves the intent behind; its PID no longer exists.
-    await writeFile(intentPath, '2147483647 0 dead\n')
+    // A SIGKILL leaves an active record behind; its PID no longer exists.
+    await writeFile(logPath, '\nR 2147483647 1000 dead ok\n')
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
@@ -149,7 +149,7 @@ test('ignores a reclaim intent left by a dead owner', { timeout: 15_000 }, async
       entered = true
     })
 
-    assert.equal(entered, true, 'a dead intent must not block or be resurrected')
+    assert.equal(entered, true, 'a dead record must not block')
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
@@ -181,15 +181,15 @@ test('ignores a legacy guard without deleting it', { timeout: 15_000 }, async ()
   }
 })
 
-test('does not reclaim while an older live intent exists', { timeout: 15_000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'te-live-intent-'))
+test('follows append order, not token order, for equal timestamps', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-live-record-'))
   const target = join(dir, 'state.json')
   const lockPath = `${target}.lock`
-  const intentPath = `${lockPath}.reclaim.${process.pid}.live`
+  const logPath = `${lockPath}.reclaim.log`
+  const stamp = Date.now()
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
-    const created = Date.now() - 60_000
-    await writeFile(intentPath, `${process.pid} ${created} live\n`)
+    await writeFile(logPath, `\nR ${process.pid} ${stamp} zzz-first ok\n\nR ${process.pid} ${stamp} aaa-second ok\n`)
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
@@ -201,69 +201,58 @@ test('does not reclaim while an older live intent exists', { timeout: 15_000 }, 
       (error) => error,
     )
     await sleep(300)
-    assert.equal(entered, false, 'a live older intent must block the newcomer')
+    assert.equal(entered, false, 'the first live record must block even with a higher token')
+
+    await appendFile(logPath, `\nD ${process.pid} ${stamp} zzz-first ok\n`)
+    await sleep(300)
+    assert.equal(entered, false, 'the second live record must then block')
+
+    await appendFile(logPath, `\nD ${process.pid} ${stamp} aaa-second ok\n`)
     const outcome = await attempt
-    assert.ok(outcome instanceof Error, 'the newcomer must time out')
-    assert.equal(await readFile(intentPath, 'utf8'), `${process.pid} ${created} live\n`, 'a live intent must remain untouched')
-    await unlink(intentPath)
-    await withFileLock(target, async () => {
-      entered = true
-    })
-    assert.equal(entered, true, 'removing the live intent must let the next owner in')
+    assert.equal(outcome, 'acquired', 'the next contender must proceed after both markers')
+    assert.equal(entered, true)
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
 })
 
-test('ignores a fresh empty intent but reclaims an old one', { timeout: 20_000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'te-empty-intent-'))
+test('ignores a partial log tail', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-partial-record-'))
   const target = join(dir, 'state.json')
   const lockPath = `${target}.lock`
-  const intentPath = `${lockPath}.reclaim.999999.empty`
+  const logPath = `${lockPath}.reclaim.log`
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
-    await writeFile(intentPath, '')
+    // A crash during append can leave a record without its newline.
+    await writeFile(logPath, `\nR ${process.pid} 1000 partial`)
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
     let entered = false
-    const attempt = withFileLock(target, async () => {
-      entered = true
-    }).then(
-      () => 'acquired',
-      (error) => error,
-    )
-    await sleep(300)
-    assert.equal(entered, false, 'a fresh empty intent must block')
-    const outcome = await attempt
-    assert.ok(outcome instanceof Error, 'the newcomer must time out')
-
-    await utimes(intentPath, old, old)
     await withFileLock(target, async () => {
       entered = true
     })
-    assert.equal(entered, true, 'an old empty intent must be ignored')
+    assert.equal(entered, true, 'an incomplete record must be ignored')
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
 })
 
-test('ignores an old empty intent without admitting two owners', { timeout: 30_000 }, async () => {
+test('ignores dead records without admitting two owners', { timeout: 30_000 }, async () => {
   const rounds = 5
   const contenders = 100
   let overlaps = 0
   let rejected = 0
   for (let round = 0; round < rounds; round++) {
-    const dir = await mkdtemp(join(tmpdir(), 'te-empty-intent-race-'))
+    const dir = await mkdtemp(join(tmpdir(), 'te-dead-record-race-'))
     const target = join(dir, 'state.json')
     const lockPath = `${target}.lock`
-    const intentPath = `${lockPath}.reclaim.999999.empty`
+    const logPath = `${lockPath}.reclaim.log`
     try {
       await writeFile(lockPath, '2147483647 0 old\n')
-      await writeFile(intentPath, '')
+      await writeFile(logPath, '\nR 2147483647 1000 dead ok\n')
       const old = new Date(Date.now() - 60_000)
       await utimes(lockPath, old, old)
-      await utimes(intentPath, old, old)
       let active = 0
       const tasks = Array.from({ length: contenders }, () =>
         withFileLock(target, async () => {
@@ -279,6 +268,6 @@ test('ignores an old empty intent without admitting two owners', { timeout: 30_0
       await rm(dir, { recursive: true, force: true })
     }
   }
-  assert.equal(overlaps, 0, 'old-empty intent recovery must not admit two owners')
+  assert.equal(overlaps, 0, 'dead records must not admit two owners')
   assert.equal(rejected, 0, 'every contender must eventually acquire the lock')
 })

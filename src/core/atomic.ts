@@ -5,8 +5,8 @@
  * Every write is fail-open at the call site: the caller logs a warning and
  * keeps the agent running. No function here throws for a missing file.
  */
-import { link, open, readFile, readdir, rename, stat, unlink, writeFile, mkdir } from 'node:fs/promises'
-import { basename, dirname, join } from 'node:path'
+import { appendFile, open, readFile, readdir, rename, stat, unlink, writeFile, mkdir } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 
 const LOCK_STALE_MS = 15_000
@@ -203,160 +203,87 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
 }
 
 /**
- * Reclaim a stale lock with a per-contender intent file. Each contender writes
- * an immutable, uniquely named record; the live record with the oldest
- * creation time is the only one allowed to remove the stale main lock. A dead
- * intent is ignored rather than deleted, so recovery never has to unlink a
- * path that another live process may have reused.
+ * Reclaim a stale lock through an append-only election log. Every contender
+ * appends one record and, when it stops participating, one completion marker.
+ * The first record in the log whose owner is still alive is the only contender
+ * allowed to remove the stale main lock. A dead record is ignored rather than
+ * deleted, so recovery never unlinks a path that another process may reuse.
  *
- * The election order is the intent's filesystem `ctimeNs`, captured after the
- * hard link is made: a record linked later sorts after one linked earlier,
- * even within the same millisecond. The temporary file is kept until the intent
- * is removed, because unlinking it would change the inode's ctime.
+ * O_APPEND gives the log a total order: a record appended later is always after
+ * an earlier record, even when filesystem timestamps collide. The log is never
+ * truncated or rotated because removing a live owner's record would admit a
+ * second owner. Entries are small and stale reclamation is rare.
  */
 async function reclaimStaleLock(lockPath: string): Promise<boolean> {
-  const intent = await createReclaimIntent(lockPath)
-  if (intent === undefined) return false
+  const token = randomBytes(8).toString('hex')
+  const logPath = `${lockPath}.reclaim.log`
+  // The leading newline isolates a partial tail left by a crash. Records carry
+  // a kind and a terminator, so an incomplete record is never reinterpreted as
+  // a completed one.
+  await appendFile(logPath, `\nR ${process.pid} ${Date.now()} ${token} ok\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  })
   try {
-    const intents = await listLiveReclaimIntents(lockPath)
-    if (intents[0]?.path !== intent.path) return false
+    if ((await firstLiveReclaimToken(logPath)) !== token) return false
     // Re-check under the election: another owner may have replaced the lock
     // between the caller's isStale() call and this point.
     if (await isStale(lockPath)) await unlink(lockPath).catch(() => undefined)
     return true
   } finally {
-    await removeReclaimIntent(intent)
-  }
-}
-
-interface ReclaimIntent {
-  path: string
-  tempPath: string
-  pid: number
-  createdAtNs: bigint
-  token: string
-}
-
-/** Create an immutable intent with a complete record; no empty write window. */
-async function createReclaimIntent(lockPath: string): Promise<ReclaimIntent | undefined> {
-  const token = randomBytes(8).toString('hex')
-  const path = `${lockPath}.reclaim.${process.pid}.${token}`
-  const tempPath = `${path}.tmp`
-  const createdAt = Date.now()
-  try {
-    await writeFile(tempPath, `${process.pid} ${createdAt} ${token}\n`, {
+    // A completion marker lets the next contender proceed. If this process
+    // dies instead, the record is ignored once its PID is gone.
+    await appendFile(logPath, `\nD ${process.pid} ${Date.now()} ${token} ok\n`, {
       encoding: 'utf8',
       mode: 0o600,
-    })
-    try {
-      await link(tempPath, path)
-    } catch (error) {
-      await unlink(tempPath).catch(() => undefined)
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-      return undefined
+    }).catch(() => undefined)
+  }
+}
+
+/** First live, unfinished record in append order. */
+async function firstLiveReclaimToken(logPath: string): Promise<string | undefined> {
+  let text: string
+  try {
+    text = await readFile(logPath, 'utf8')
+  } catch {
+    return undefined
+  }
+
+  const lines = text.split('\n')
+  // Ignore a partial tail left by a crash or an interrupted append.
+  if (lines[lines.length - 1] !== '') lines.pop()
+
+  const records: Array<{ pid: number; token: string }> = []
+  const finished = new Set<string>()
+  for (const line of lines) {
+    const fields = line.trim().split(/\s+/)
+    // R <pid> <time> <token> ok / D <pid> <time> <token> ok
+    if (fields.length !== 5 || fields[4] !== 'ok') continue
+    const token = fields[3]
+    if (fields[0] === 'D') {
+      finished.add(token)
+      continue
     }
+    if (fields[0] !== 'R') continue
+    const pid = Number(fields[1])
+    if (Number.isFinite(pid) && pid > 0) records.push({ pid, token })
+  }
+
+  for (const record of records) {
+    if (finished.has(record.token)) continue
+    if (isProcessAlive(record.pid)) return record.token
+  }
+  return undefined
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
   } catch (error) {
-    await unlink(tempPath).catch(() => undefined)
-    throw error
+    // EPERM means the process exists but belongs to someone else.
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
   }
-
-  let createdAtNs = 0n
-  try {
-    createdAtNs = (await stat(path, { bigint: true })).ctimeNs
-  } catch {
-    // Fall back below; the intent is already published.
-  }
-  if (createdAtNs <= 0n) createdAtNs = BigInt(createdAt) * 1_000_000n
-  return { path, tempPath, pid: process.pid, createdAtNs, token }
-}
-
-async function removeReclaimIntent(intent: ReclaimIntent): Promise<void> {
-  try {
-    const current = await readFile(intent.path, 'utf8')
-    if (current.trim().split(/\s+/)[2] === intent.token) await unlink(intent.path).catch(() => undefined)
-  } catch {
-    // Already gone; unique names have no replacement to protect.
-  } finally {
-    // Removing the temp link only after the intent is gone keeps its ctime
-    // stable while it participates in elections.
-    await unlink(intent.tempPath).catch(() => undefined)
-  }
-}
-
-/** Live intents ordered oldest first; dead and unparseable-old records are ignored. */
-async function listLiveReclaimIntents(lockPath: string): Promise<ReclaimIntent[]> {
-  const dir = dirname(lockPath)
-  const prefix = `${basename(lockPath)}.reclaim.`
-  let names: string[]
-  try {
-    names = await readdir(dir)
-  } catch {
-    return []
-  }
-
-  const intents = await Promise.all(
-    names
-      .filter((name) => name.startsWith(prefix) && !name.endsWith('.tmp'))
-      .map(async (name): Promise<ReclaimIntent | undefined> => {
-        const path = join(dir, name)
-        let text: string
-        try {
-          text = await readFile(path, 'utf8')
-        } catch {
-          return undefined
-        }
-
-        const [pidText, createdText, tokenText] = text.trim().split(/\s+/)
-        const pid = Number(pidText)
-        const token = tokenText ?? name
-        let createdAtNs = 0n
-        try {
-          createdAtNs = (await stat(path, { bigint: true })).ctimeNs
-        } catch {
-          return undefined
-        }
-        if (createdAtNs <= 0n) {
-          const contentCreatedAt = Number(createdText)
-          if (!Number.isFinite(contentCreatedAt) || contentCreatedAt <= 0) {
-            try {
-              createdAtNs = BigInt(Math.round((await stat(path)).mtimeMs)) * 1_000_000n
-            } catch {
-              return undefined
-            }
-          } else {
-            createdAtNs = BigInt(contentCreatedAt) * 1_000_000n
-          }
-        }
-
-        let live = false
-        if (Number.isFinite(pid) && pid > 0) {
-          try {
-            process.kill(pid, 0)
-            live = true
-          } catch (error) {
-            // EPERM means the process exists but belongs to someone else.
-            live = (error as NodeJS.ErrnoException).code === 'EPERM'
-          }
-        } else {
-          try {
-            const info = await stat(path)
-            live = Date.now() - info.mtimeMs <= LOCK_STALE_MS
-          } catch {
-            return undefined
-          }
-        }
-        if (!live) return undefined
-        return { path, tempPath: `${path}.tmp`, pid: Number.isFinite(pid) ? pid : 0, createdAtNs, token }
-      }),
-  )
-
-  return intents
-    .filter((intent): intent is ReclaimIntent => intent !== undefined)
-    .sort((a, b) => {
-      if (a.createdAtNs < b.createdAtNs) return -1
-      if (a.createdAtNs > b.createdAtNs) return 1
-      return a.token.localeCompare(b.token) || a.pid - b.pid
-    })
 }
 
 async function isStale(lockPath: string): Promise<boolean> {

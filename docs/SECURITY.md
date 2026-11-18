@@ -53,10 +53,10 @@ results.
   `skills.json`/`tools.json` under that lock before applying the change, so
   concurrent DSH sessions do not overwrite each other's fields with a stale
   in-process cache. Stale-lock recovery checks the owner PID first, serializes
-  removal through an election of per-contender intent files, and does not treat
-  a fresh empty lock as dead. Each intent is unique and complete on publication;
-  a dead intent is ignored, not deleted, so recovery never removes a path that
-  another live owner may have reused.
+  removal through an append-only election log, and does not treat a fresh empty
+  lock as dead. Append order determines the single reclaimer; dead records are
+  ignored, not deleted, so recovery never removes a path that another live
+  owner may have reused.
 * JSONL logs rotate at a configurable byte cap; retention pruning deletes old
   metrics rows.
 * A JSON file that cannot be parsed is moved to `<name>.corrupt-<timestamp>`

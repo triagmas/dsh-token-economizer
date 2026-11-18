@@ -28,15 +28,16 @@ All notable changes to this plugin are recorded here. The format follows
 
 - **A live lock owner is never evicted.** `isStale` checks the owning PID before
   the lock age, and a release token prevents a former owner from unlinking a
-  successor's lock. Stale reclamation now uses one immutable intent file per
-  contender; the oldest live intent removes the stale lock, and a dead intent is
-  ignored rather than deleted. Because no live intent path is ever reclaimed or
-  renamed, recovery cannot unlink a replacement. An empty or partial lock is
-  reclaimed only after `stat.mtime` exceeds the 15-second stale threshold.
-  Regression tests cover a 16-second live hold, a fresh empty lock, a dead
-  intent, a live older intent that must block, a fresh empty intent, an old
-  empty intent, old-empty-intent contention, a legacy guard left untouched,
-  and 100 stale-lock contenders across five rounds.
+  successor's lock. Stale reclamation now appends one record per contender to
+  an election log; the first live record removes the stale lock, and a
+  completion marker releases the next contender. Append order, not a timestamp
+  or token, is the tie-break. Dead records and partial tails are ignored rather
+  than deleted, so recovery never unlinks a path that another live owner may
+  reuse. An empty or partial lock is reclaimed only after `stat.mtime` exceeds
+  the 15-second stale threshold. Regression tests cover a 16-second live hold,
+  a fresh empty lock, a dead record, equal-timestamp append order, a partial
+  log tail, dead-record contention, a legacy guard left untouched, and 100
+  stale-lock contenders across five rounds.
 
 ### Upstream drift after the pinned revision
 
