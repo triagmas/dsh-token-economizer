@@ -9,7 +9,7 @@ This is an independent TypeScript port of the deterministic mechanisms in Micros
 commit `7042ea89`). See [docs/UPSTREAM.md](docs/UPSTREAM.md) for exactly what is ported,
 what is adapted to the Harness, and what is deliberately not ported.
 
-**Project status (v0.1.1):** a functional, tested core of the three mechanisms,
+**Project status (v0.1.2):** a functional, tested core of the three mechanisms,
 not a 1:1 port of the whole upstream product. The remaining fidelity gaps and
 the review protocol are documented in [REVIEW.md](REVIEW.md). If you are
 reviewing this repository, read that file first: the acceptance criterion is
