@@ -29,11 +29,13 @@ All notable changes to this plugin are recorded here. The format follows
 - **A live lock owner is never evicted.** `isStale` checks the owning PID before
   the lock age, and a release token prevents a former owner from unlinking a
   successor's lock. Stale reclamation now runs through a short-lived guard;
-  a guard left by a dead owner is recovered after confirming the PID is gone,
-  and an empty or partial lock is reclaimed only after `stat.mtime` exceeds the
-  15-second stale threshold. Regression tests cover a 16-second live hold, a
-  fresh empty lock, a fresh empty guard, a dead guard, an old empty guard,
-  dead-guard contention, and 100 stale-lock contenders across five rounds.
+  the guard is published by hard link with its complete owner record, and a
+  dead guard is recovered by renaming and verifying the inode before removal,
+  so recovery never unlinks a replacement guard. An empty or partial lock is
+  reclaimed only after `stat.mtime` exceeds the 15-second stale threshold.
+  Regression tests cover a 16-second live hold, a fresh empty lock, a fresh
+  empty guard, a dead guard, an old empty guard, dead-guard contention,
+  old-empty-guard contention, and 100 stale-lock contenders across five rounds.
 
 ### Upstream drift after the pinned revision
 

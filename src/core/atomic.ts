@@ -5,7 +5,7 @@
  * Every write is fail-open at the call site: the caller logs a warning and
  * keeps the agent running. No function here throws for a missing file.
  */
-import { open, readFile, readdir, rename, stat, unlink, writeFile, mkdir } from 'node:fs/promises'
+import { link, open, readFile, readdir, rename, stat, unlink, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 
@@ -205,9 +205,9 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
 /**
  * Reclaim a stale lock through a short-lived guard file, so two contenders
  * cannot both remove the old lock and then race to remove the new owner's
- * lock. If the guard owner dies before cleanup, the next contender removes the
- * guard only after confirming that the owning PID is dead (or, for an
- * unparseable guard, after its mtime exceeds the stale threshold).
+ * lock. The guard is created with a hard link so its full owner record is
+ * visible atomically: there is no empty open-to-write window for a recovery
+ * pass to mistake for an abandoned guard.
  */
 async function reclaimStaleLock(lockPath: string): Promise<boolean> {
   const guardPath = `${lockPath}.reclaim`
@@ -219,7 +219,6 @@ async function reclaimStaleLock(lockPath: string): Promise<boolean> {
     if (await isStale(lockPath)) await unlink(lockPath).catch(() => undefined)
     return true
   } finally {
-    await guard.handle.close().catch(() => undefined)
     try {
       const current = await readFile(guardPath, 'utf8')
       if (current.trim().split(/\s+/)[2] === guard.token) await unlink(guardPath).catch(() => undefined)
@@ -230,35 +229,37 @@ async function reclaimStaleLock(lockPath: string): Promise<boolean> {
 }
 
 interface ReclaimGuard {
-  handle: Awaited<ReturnType<typeof open>>
   token: string
 }
 
 /** Take the reclaim guard, recovering one left by a dead owner first. */
 async function acquireReclaimGuard(guardPath: string): Promise<ReclaimGuard | undefined> {
   const token = randomBytes(8).toString('hex')
-  const tryOpen = async (): Promise<ReclaimGuard | undefined> => {
-    let handle: Awaited<ReturnType<typeof open>>
+  const tryCreate = async (): Promise<ReclaimGuard | undefined> => {
+    const tempPath = `${guardPath}.${process.pid}.${token}.tmp`
     try {
-      handle = await open(guardPath, 'wx', 0o600)
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-      return undefined
+      await writeFile(tempPath, `${process.pid} ${Date.now()} ${token}\n`, {
+        encoding: 'utf8',
+        mode: 0o600,
+      })
+      try {
+        // Atomic create with complete contents. Unlike open('wx') + writeFile,
+        // a contender can never observe an empty file between create and write.
+        await link(tempPath, guardPath)
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
+        return undefined
+      }
+      return { token }
+    } finally {
+      await unlink(tempPath).catch(() => undefined)
     }
-    try {
-      await handle.writeFile(`${process.pid} ${Date.now()} ${token}\n`, 'utf8')
-    } catch (error) {
-      await handle.close().catch(() => undefined)
-      await unlink(guardPath).catch(() => undefined)
-      throw error
-    }
-    return { handle, token }
   }
 
-  const first = await tryOpen()
+  const first = await tryCreate()
   if (first !== undefined) return first
   if (!(await clearDeadReclaimGuard(guardPath))) return undefined
-  return tryOpen()
+  return tryCreate()
 }
 
 /** True when this call removed a guard whose owner is no longer alive. */
@@ -289,11 +290,42 @@ async function clearDeadReclaimGuard(guardPath: string): Promise<boolean> {
     }
   }
 
+  // Move the candidate to a private name and verify the inode/content there.
+  // A replacement guard is never unlinked: if the move caught one, it is put
+  // back with a hard link (or left in the tombstone if another guard already
+  // took its path).
+  const tombstone = `${guardPath}.dead-${process.pid}-${randomBytes(4).toString('hex')}`
+  let before: Awaited<ReturnType<typeof stat>>
   try {
-    // Do not delete a replacement guard created after the first read.
+    before = await stat(guardPath)
+  } catch {
+    return false
+  }
+  try {
     const current = await readFile(guardPath, 'utf8')
     if (current !== text) return false
-    await unlink(guardPath)
+    await rename(guardPath, tombstone)
+  } catch {
+    return false
+  }
+
+  try {
+    const moved = await stat(tombstone)
+    const movedText = await readFile(tombstone, 'utf8')
+    if (moved.dev !== before.dev || moved.ino !== before.ino || movedText !== text) {
+      // We moved a replacement. Restore the same inode without overwriting a
+      // newer guard, and never unlink a replacement that we cannot restore.
+      try {
+        await link(tombstone, guardPath)
+        await unlink(tombstone).catch(() => undefined)
+      } catch {
+        // The path is occupied by yet another guard. Leave the tombstone; it
+        // is not the last link to the moved inode once restoration succeeds,
+        // and deleting it here could remove the only guard of a live owner.
+      }
+      return false
+    }
+    await unlink(tombstone).catch(() => undefined)
     return true
   } catch {
     return false

@@ -245,3 +245,39 @@ test('recovers a dead guard without admitting two owners', { timeout: 30_000 }, 
   assert.equal(overlaps, 0, 'dead-guard recovery must not admit two owners')
   assert.equal(rejected, 0, 'every contender must eventually acquire the lock')
 })
+
+
+test('recovers an old empty guard without admitting two owners', { timeout: 30_000 }, async () => {
+  const rounds = 5
+  const contenders = 100
+  let overlaps = 0
+  let rejected = 0
+  for (let round = 0; round < rounds; round++) {
+    const dir = await mkdtemp(join(tmpdir(), 'te-empty-guard-race-'))
+    const target = join(dir, 'state.json')
+    const lockPath = `${target}.lock`
+    const guardPath = `${lockPath}.reclaim`
+    try {
+      await writeFile(lockPath, '2147483647 0 old\n')
+      await writeFile(guardPath, '')
+      const old = new Date(Date.now() - 60_000)
+      await utimes(lockPath, old, old)
+      await utimes(guardPath, old, old)
+      let active = 0
+      const tasks = Array.from({ length: contenders }, () =>
+        withFileLock(target, async () => {
+          active++
+          if (active > 1) overlaps++
+          await sleep(3)
+          active--
+        }),
+      )
+      const results = await Promise.allSettled(tasks)
+      rejected += results.filter((result) => result.status === 'rejected').length
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }
+  assert.equal(overlaps, 0, 'old-empty-guard recovery must not admit two owners')
+  assert.equal(rejected, 0, 'every contender must eventually acquire the lock')
+})
