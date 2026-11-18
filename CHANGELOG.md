@@ -31,13 +31,16 @@ All notable changes to this plugin are recorded here. The format follows
   successor's lock. Stale reclamation now appends one record per contender to
   an election log; the first live record removes the stale lock, and a
   completion marker releases the next contender. Append order, not a timestamp
-  or token, is the tie-break. Dead records and partial tails are ignored rather
-  than deleted, so recovery never unlinks a path that another live owner may
-  reuse. An empty or partial lock is reclaimed only after `stat.mtime` exceeds
-  the 15-second stale threshold. Regression tests cover a 16-second live hold,
-  a fresh empty lock, a dead record, equal-timestamp append order, a partial
-  log tail, dead-record contention, a legacy guard left untouched, and 100
-  stale-lock contenders across five rounds.
+  or token, is the tie-break. On Linux, records carry the process start time, so
+  a reused PID does not inherit an abandoned record; without `/proc`, an
+  unresolved record expires after four stale windows. Dead records and partial
+  tails are ignored rather than deleted, so recovery never unlinks a path that
+  another live owner may reuse. An empty or partial lock is reclaimed only after
+  `stat.mtime` exceeds the 15-second stale threshold. Regression tests cover a
+  16-second live hold, a fresh empty lock, a dead record, equal-timestamp append
+  order, an unfinished record from a reused PID, a partial log tail,
+  dead-record contention, a legacy guard left untouched, and 100 stale-lock
+  contenders across five rounds.
 
 ### Upstream drift after the pinned revision
 

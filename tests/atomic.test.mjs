@@ -8,6 +8,19 @@ import { withFileLock } from '../lib/core/atomic.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** Linux process start time, matching the identity in election records. */
+async function processStartIdentity(pid) {
+  try {
+    const text = await readFile(`/proc/${pid}/stat`, 'utf8')
+    const close = text.lastIndexOf(')')
+    if (close < 0) return undefined
+    const value = text.slice(close + 2).trim().split(/\s+/)[19]
+    return value && /^\d+$/.test(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
 async function waitFor(predicate, timeoutMs, label) {
   const deadline = Date.now() + timeoutMs
   while (!predicate()) {
@@ -140,7 +153,7 @@ test('ignores a reclaim log record left by a dead owner', { timeout: 15_000 }, a
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
     // A SIGKILL leaves an active record behind; its PID no longer exists.
-    await writeFile(logPath, '\nR 2147483647 1000 dead ok\n')
+    await writeFile(logPath, '\nR 2147483647 1 1000 dead ok\n')
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
@@ -187,9 +200,10 @@ test('follows append order, not token order, for equal timestamps', { timeout: 1
   const lockPath = `${target}.lock`
   const logPath = `${lockPath}.reclaim.log`
   const stamp = Date.now()
+  const identity = (await processStartIdentity(process.pid)) ?? '-'
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
-    await writeFile(logPath, `\nR ${process.pid} ${stamp} zzz-first ok\n\nR ${process.pid} ${stamp} aaa-second ok\n`)
+    await writeFile(logPath, `\nR ${process.pid} ${identity} ${stamp} zzz-first ok\n\nR ${process.pid} ${identity} ${stamp} aaa-second ok\n`)
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
@@ -203,14 +217,39 @@ test('follows append order, not token order, for equal timestamps', { timeout: 1
     await sleep(300)
     assert.equal(entered, false, 'the first live record must block even with a higher token')
 
-    await appendFile(logPath, `\nD ${process.pid} ${stamp} zzz-first ok\n`)
+    await appendFile(logPath, `\nD ${process.pid} ${identity} ${stamp} zzz-first ok\n`)
     await sleep(300)
     assert.equal(entered, false, 'the second live record must then block')
 
-    await appendFile(logPath, `\nD ${process.pid} ${stamp} aaa-second ok\n`)
+    await appendFile(logPath, `\nD ${process.pid} ${identity} ${stamp} aaa-second ok\n`)
     const outcome = await attempt
     assert.equal(outcome, 'acquired', 'the next contender must proceed after both markers')
     assert.equal(entered, true)
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('ignores an unfinished record from a reused PID', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-reused-pid-'))
+  const target = join(dir, 'state.json')
+  const lockPath = `${target}.lock`
+  const logPath = `${lockPath}.reclaim.log`
+  const identity = (await processStartIdentity(process.pid)) ?? '-'
+  try {
+    await writeFile(lockPath, '2147483647 0 old\n')
+    // Same live PID, but a start time from an earlier process incarnation.
+    const staleIdentity = identity === '0' ? '1' : '0'
+    const oldCreatedAt = Date.now() - 10 * 60_000
+    await writeFile(logPath, `\nR ${process.pid} ${staleIdentity} ${oldCreatedAt} reused ok\n`)
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
+
+    let entered = false
+    await withFileLock(target, async () => {
+      entered = true
+    })
+    assert.equal(entered, true, 'a record from an earlier process incarnation must not block')
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
@@ -224,7 +263,8 @@ test('ignores a partial log tail', { timeout: 15_000 }, async () => {
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
     // A crash during append can leave a record without its newline.
-    await writeFile(logPath, `\nR ${process.pid} 1000 partial`)
+    const identity = (await processStartIdentity(process.pid)) ?? '-'
+    await writeFile(logPath, `\nR ${process.pid} ${identity} 1000 partial`)
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
@@ -250,7 +290,7 @@ test('ignores dead records without admitting two owners', { timeout: 30_000 }, a
     const logPath = `${lockPath}.reclaim.log`
     try {
       await writeFile(lockPath, '2147483647 0 old\n')
-      await writeFile(logPath, '\nR 2147483647 1000 dead ok\n')
+      await writeFile(logPath, '\nR 2147483647 1 1000 dead ok\n')
       const old = new Date(Date.now() - 60_000)
       await utimes(lockPath, old, old)
       let active = 0

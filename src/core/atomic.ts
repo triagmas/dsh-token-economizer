@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto'
 const LOCK_STALE_MS = 15_000
 const LOCK_TIMEOUT_MS = 5_000
 const LOCK_RETRY_MS = 25
+const RECLAIM_RECORD_TTL_MS = LOCK_STALE_MS * 4
 
 /** Create a directory tree when missing. */
 export async function ensureDir(path: string): Promise<void> {
@@ -220,7 +221,8 @@ async function reclaimStaleLock(lockPath: string): Promise<boolean> {
   // The leading newline isolates a partial tail left by a crash. Records carry
   // a kind and a terminator, so an incomplete record is never reinterpreted as
   // a completed one.
-  await appendFile(logPath, `\nR ${process.pid} ${Date.now()} ${token} ok\n`, {
+  const identity = (await processStartIdentity(process.pid)) ?? '-'
+  await appendFile(logPath, `\nR ${process.pid} ${identity} ${Date.now()} ${token} ok\n`, {
     encoding: 'utf8',
     mode: 0o600,
   })
@@ -233,7 +235,7 @@ async function reclaimStaleLock(lockPath: string): Promise<boolean> {
   } finally {
     // A completion marker lets the next contender proceed. If this process
     // dies instead, the record is ignored once its PID is gone.
-    await appendFile(logPath, `\nD ${process.pid} ${Date.now()} ${token} ok\n`, {
+    await appendFile(logPath, `\nD ${process.pid} ${identity} ${Date.now()} ${token} ok\n`, {
       encoding: 'utf8',
       mode: 0o600,
     }).catch(() => undefined)
@@ -253,27 +255,62 @@ async function firstLiveReclaimToken(logPath: string): Promise<string | undefine
   // Ignore a partial tail left by a crash or an interrupted append.
   if (lines[lines.length - 1] !== '') lines.pop()
 
-  const records: Array<{ pid: number; token: string }> = []
+  const records: Array<{ pid: number; identity: string; createdAt: number; token: string }> = []
   const finished = new Set<string>()
   for (const line of lines) {
     const fields = line.trim().split(/\s+/)
-    // R <pid> <time> <token> ok / D <pid> <time> <token> ok
-    if (fields.length !== 5 || fields[4] !== 'ok') continue
-    const token = fields[3]
+    // R/D <pid> <starttime> <createdAt> <token> ok
+    if (fields.length !== 6 || fields[5] !== 'ok') continue
+    const token = fields[4]
     if (fields[0] === 'D') {
       finished.add(token)
       continue
     }
     if (fields[0] !== 'R') continue
     const pid = Number(fields[1])
-    if (Number.isFinite(pid) && pid > 0) records.push({ pid, token })
+    const createdAt = Number(fields[3])
+    if (Number.isFinite(pid) && pid > 0) {
+      records.push({ pid, identity: fields[2], createdAt, token })
+    }
   }
 
   for (const record of records) {
     if (finished.has(record.token)) continue
-    if (isProcessAlive(record.pid)) return record.token
+    if (!isProcessAlive(record.pid)) continue
+    if (record.identity !== '-') {
+      const currentIdentity = await processStartIdentity(record.pid)
+      // A reused PID has a different start time. If /proc is momentarily
+      // unavailable, keep the conservative PID-based answer.
+      if (currentIdentity !== undefined && currentIdentity !== record.identity) continue
+    } else if (
+      Number.isFinite(record.createdAt) &&
+      Date.now() - record.createdAt > RECLAIM_RECORD_TTL_MS
+    ) {
+      // Without /proc there is no process-start identity. Bound the block so a
+      // reused PID cannot hold the log forever; the TTL is four stale windows.
+      continue
+    }
+    return record.token
   }
   return undefined
+}
+
+/**
+ * Linux process start time in clock ticks since boot. Together with the PID it
+ * identifies an incarnation, so a reused PID does not inherit an old record.
+ * Returns undefined on platforms without /proc.
+ */
+async function processStartIdentity(pid: number): Promise<string | undefined> {
+  try {
+    const text = await readFile(`/proc/${pid}/stat`, 'utf8')
+    const close = text.lastIndexOf(')')
+    if (close < 0) return undefined
+    // Fields after comm: field 3 is index 0, so starttime (field 22) is 19.
+    const value = text.slice(close + 2).trim().split(/\s+/)[19]
+    return value && /^\d+$/.test(value) ? value : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function isProcessAlive(pid: number): boolean {
