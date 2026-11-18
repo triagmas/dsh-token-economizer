@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { access, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
+import { access, appendFile, mkdtemp, readFile, rm, utimes, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import test from 'node:test'
@@ -7,6 +7,19 @@ import test from 'node:test'
 import { withFileLock } from '../lib/core/atomic.js'
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Linux process start time, matching the identity in election records. */
+async function processStartIdentity(pid) {
+  try {
+    const text = await readFile(`/proc/${pid}/stat`, 'utf8')
+    const close = text.lastIndexOf(')')
+    if (close < 0) return undefined
+    const value = text.slice(close + 2).trim().split(/\s+/)[19]
+    return value && /^\d+$/.test(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
 
 async function waitFor(predicate, timeoutMs, label) {
   const deadline = Date.now() + timeoutMs
@@ -132,16 +145,15 @@ test('serializes stale-lock reclamation across contenders', { timeout: 30_000 },
 })
 
 
-test('recovers a reclaim guard left by a dead owner', { timeout: 15_000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'te-dead-guard-'))
+test('ignores a reclaim log record left by a dead owner', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-dead-record-'))
   const target = join(dir, 'state.json')
   const lockPath = `${target}.lock`
-  const guardPath = `${lockPath}.reclaim`
+  const logPath = `${lockPath}.reclaim.log`
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
-    // A SIGKILL between guard creation and cleanup leaves exactly this:
-    // a guard naming a PID that no longer exists.
-    await writeFile(guardPath, '2147483647 0 dead\n')
+    // A SIGKILL leaves an active record behind; its PID no longer exists.
+    await writeFile(logPath, '\nR 2147483647 1 1000 dead ok\n')
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
@@ -150,46 +162,48 @@ test('recovers a reclaim guard left by a dead owner', { timeout: 15_000 }, async
       entered = true
     })
 
-    assert.equal(entered, true, 'the next owner must recover a dead guard')
-    await assert.rejects(access(guardPath), 'the recovered guard must be gone')
+    assert.equal(entered, true, 'a dead record must not block')
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
 })
 
-test('recovers an empty reclaim guard after the stale age', { timeout: 15_000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'te-empty-guard-'))
+test('ignores a legacy guard without deleting it', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-legacy-guard-'))
   const target = join(dir, 'state.json')
   const lockPath = `${target}.lock`
-  const guardPath = `${lockPath}.reclaim`
+  const legacyGuard = `${lockPath}.reclaim`
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
-    await writeFile(guardPath, '')
+    // The previous protocol used this path. It is now inert, but must never be
+    // deleted by recovery: a live old-version owner may still be using it.
+    await writeFile(legacyGuard, '2147483647 0 dead\n')
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
-    await utimes(guardPath, old, old)
+    await utimes(legacyGuard, old, old)
 
     let entered = false
     await withFileLock(target, async () => {
       entered = true
     })
 
-    assert.equal(entered, true, 'an old unparseable guard must be recoverable')
-    await assert.rejects(access(guardPath), 'the recovered guard must be gone')
+    assert.equal(entered, true, 'a dead legacy guard must not block')
+    assert.equal(await readFile(legacyGuard, 'utf8'), '2147483647 0 dead\n', 'legacy guard must remain untouched')
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
 })
 
-
-test('does not reclaim a fresh empty guard', { timeout: 15_000 }, async () => {
-  const dir = await mkdtemp(join(tmpdir(), 'te-fresh-guard-'))
+test('follows append order, not token order, for equal timestamps', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-live-record-'))
   const target = join(dir, 'state.json')
   const lockPath = `${target}.lock`
-  const guardPath = `${lockPath}.reclaim`
+  const logPath = `${lockPath}.reclaim.log`
+  const stamp = Date.now()
+  const identity = (await processStartIdentity(process.pid)) ?? '-'
   try {
     await writeFile(lockPath, '2147483647 0 old\n')
-    await writeFile(guardPath, '')
+    await writeFile(logPath, `\nR ${process.pid} ${identity} ${stamp} zzz-first ok\n\nR ${process.pid} ${identity} ${stamp} aaa-second ok\n`)
     const old = new Date(Date.now() - 60_000)
     await utimes(lockPath, old, old)
 
@@ -200,69 +214,85 @@ test('does not reclaim a fresh empty guard', { timeout: 15_000 }, async () => {
       () => 'acquired',
       (error) => error,
     )
-
     await sleep(300)
-    const enteredEarly = entered
+    assert.equal(entered, false, 'the first live record must block even with a higher token')
+
+    await appendFile(logPath, `\nD ${process.pid} ${identity} ${stamp} zzz-first ok\n`)
+    await sleep(300)
+    assert.equal(entered, false, 'the second live record must then block')
+
+    await appendFile(logPath, `\nD ${process.pid} ${identity} ${stamp} aaa-second ok\n`)
     const outcome = await attempt
-    assert.equal(enteredEarly, false, 'a fresh guard must not be recovered')
-    assert.ok(outcome instanceof Error, 'the contender must time out')
-    assert.equal(await readFile(guardPath, 'utf8'), '', 'the guard must stay in place')
+    assert.equal(outcome, 'acquired', 'the next contender must proceed after both markers')
+    assert.equal(entered, true)
   } finally {
     await rm(dir, { recursive: true, force: true })
   }
 })
 
+test('ignores an unfinished record from a reused PID', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-reused-pid-'))
+  const target = join(dir, 'state.json')
+  const lockPath = `${target}.lock`
+  const logPath = `${lockPath}.reclaim.log`
+  const identity = (await processStartIdentity(process.pid)) ?? '-'
+  try {
+    await writeFile(lockPath, '2147483647 0 old\n')
+    // Same live PID, but a start time from an earlier process incarnation.
+    const staleIdentity = identity === '0' ? '1' : '0'
+    const oldCreatedAt = Date.now() - 10 * 60_000
+    await writeFile(logPath, `\nR ${process.pid} ${staleIdentity} ${oldCreatedAt} reused ok\n`)
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
 
-test('recovers a dead guard without admitting two owners', { timeout: 30_000 }, async () => {
-  const rounds = 5
-  const contenders = 100
-  let overlaps = 0
-  let rejected = 0
-  for (let round = 0; round < rounds; round++) {
-    const dir = await mkdtemp(join(tmpdir(), 'te-dead-guard-race-'))
-    const target = join(dir, 'state.json')
-    const lockPath = `${target}.lock`
-    try {
-      await writeFile(lockPath, '2147483647 0 old\n')
-      await writeFile(`${lockPath}.reclaim`, '2147483647 0 dead\n')
-      const old = new Date(Date.now() - 60_000)
-      await utimes(lockPath, old, old)
-      let active = 0
-      const tasks = Array.from({ length: contenders }, () =>
-        withFileLock(target, async () => {
-          active++
-          if (active > 1) overlaps++
-          await sleep(3)
-          active--
-        }),
-      )
-      const results = await Promise.allSettled(tasks)
-      rejected += results.filter((result) => result.status === 'rejected').length
-    } finally {
-      await rm(dir, { recursive: true, force: true })
-    }
+    let entered = false
+    await withFileLock(target, async () => {
+      entered = true
+    })
+    assert.equal(entered, true, 'a record from an earlier process incarnation must not block')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
   }
-  assert.equal(overlaps, 0, 'dead-guard recovery must not admit two owners')
-  assert.equal(rejected, 0, 'every contender must eventually acquire the lock')
 })
 
+test('ignores a partial log tail', { timeout: 15_000 }, async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'te-partial-record-'))
+  const target = join(dir, 'state.json')
+  const lockPath = `${target}.lock`
+  const logPath = `${lockPath}.reclaim.log`
+  try {
+    await writeFile(lockPath, '2147483647 0 old\n')
+    // A crash during append can leave a record without its newline.
+    const identity = (await processStartIdentity(process.pid)) ?? '-'
+    await writeFile(logPath, `\nR ${process.pid} ${identity} 1000 partial`)
+    const old = new Date(Date.now() - 60_000)
+    await utimes(lockPath, old, old)
 
-test('recovers an old empty guard without admitting two owners', { timeout: 30_000 }, async () => {
+    let entered = false
+    await withFileLock(target, async () => {
+      entered = true
+    })
+    assert.equal(entered, true, 'an incomplete record must be ignored')
+  } finally {
+    await rm(dir, { recursive: true, force: true })
+  }
+})
+
+test('ignores dead records without admitting two owners', { timeout: 30_000 }, async () => {
   const rounds = 5
   const contenders = 100
   let overlaps = 0
   let rejected = 0
   for (let round = 0; round < rounds; round++) {
-    const dir = await mkdtemp(join(tmpdir(), 'te-empty-guard-race-'))
+    const dir = await mkdtemp(join(tmpdir(), 'te-dead-record-race-'))
     const target = join(dir, 'state.json')
     const lockPath = `${target}.lock`
-    const guardPath = `${lockPath}.reclaim`
+    const logPath = `${lockPath}.reclaim.log`
     try {
       await writeFile(lockPath, '2147483647 0 old\n')
-      await writeFile(guardPath, '')
+      await writeFile(logPath, '\nR 2147483647 1 1000 dead ok\n')
       const old = new Date(Date.now() - 60_000)
       await utimes(lockPath, old, old)
-      await utimes(guardPath, old, old)
       let active = 0
       const tasks = Array.from({ length: contenders }, () =>
         withFileLock(target, async () => {
@@ -278,6 +308,6 @@ test('recovers an old empty guard without admitting two owners', { timeout: 30_0
       await rm(dir, { recursive: true, force: true })
     }
   }
-  assert.equal(overlaps, 0, 'old-empty-guard recovery must not admit two owners')
+  assert.equal(overlaps, 0, 'dead records must not admit two owners')
   assert.equal(rejected, 0, 'every contender must eventually acquire the lock')
 })

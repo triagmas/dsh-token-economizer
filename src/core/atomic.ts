@@ -5,13 +5,14 @@
  * Every write is fail-open at the call site: the caller logs a warning and
  * keeps the agent running. No function here throws for a missing file.
  */
-import { link, open, readFile, readdir, rename, stat, unlink, writeFile, mkdir } from 'node:fs/promises'
+import { appendFile, open, readFile, readdir, rename, stat, unlink, writeFile, mkdir } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { randomBytes } from 'node:crypto'
 
 const LOCK_STALE_MS = 15_000
 const LOCK_TIMEOUT_MS = 5_000
 const LOCK_RETRY_MS = 25
+const RECLAIM_RECORD_TTL_MS = LOCK_STALE_MS * 4
 
 /** Create a directory tree when missing. */
 export async function ensureDir(path: string): Promise<void> {
@@ -203,132 +204,122 @@ export async function withFileLock<T>(target: string, fn: () => Promise<T>): Pro
 }
 
 /**
- * Reclaim a stale lock through a short-lived guard file, so two contenders
- * cannot both remove the old lock and then race to remove the new owner's
- * lock. The guard is created with a hard link so its full owner record is
- * visible atomically: there is no empty open-to-write window for a recovery
- * pass to mistake for an abandoned guard.
+ * Reclaim a stale lock through an append-only election log. Every contender
+ * appends one record and, when it stops participating, one completion marker.
+ * The first record in the log whose owner is still alive is the only contender
+ * allowed to remove the stale main lock. A dead record is ignored rather than
+ * deleted, so recovery never unlinks a path that another process may reuse.
+ *
+ * O_APPEND gives the log a total order: a record appended later is always after
+ * an earlier record, even when filesystem timestamps collide. The log is never
+ * truncated or rotated because removing a live owner's record would admit a
+ * second owner. Entries are small and stale reclamation is rare.
  */
 async function reclaimStaleLock(lockPath: string): Promise<boolean> {
-  const guardPath = `${lockPath}.reclaim`
-  const guard = await acquireReclaimGuard(guardPath)
-  if (guard === undefined) return false
+  const token = randomBytes(8).toString('hex')
+  const logPath = `${lockPath}.reclaim.log`
+  // The leading newline isolates a partial tail left by a crash. Records carry
+  // a kind and a terminator, so an incomplete record is never reinterpreted as
+  // a completed one.
+  const identity = (await processStartIdentity(process.pid)) ?? '-'
+  await appendFile(logPath, `\nR ${process.pid} ${identity} ${Date.now()} ${token} ok\n`, {
+    encoding: 'utf8',
+    mode: 0o600,
+  })
   try {
-    // Re-check under the guard: another owner may have replaced the lock
+    if ((await firstLiveReclaimToken(logPath)) !== token) return false
+    // Re-check under the election: another owner may have replaced the lock
     // between the caller's isStale() call and this point.
     if (await isStale(lockPath)) await unlink(lockPath).catch(() => undefined)
     return true
   } finally {
-    try {
-      const current = await readFile(guardPath, 'utf8')
-      if (current.trim().split(/\s+/)[2] === guard.token) await unlink(guardPath).catch(() => undefined)
-    } catch {
-      // Another contender recovered a dead guard or already removed this one.
-    }
+    // A completion marker lets the next contender proceed. If this process
+    // dies instead, the record is ignored once its PID is gone.
+    await appendFile(logPath, `\nD ${process.pid} ${identity} ${Date.now()} ${token} ok\n`, {
+      encoding: 'utf8',
+      mode: 0o600,
+    }).catch(() => undefined)
   }
 }
 
-interface ReclaimGuard {
-  token: string
-}
-
-/** Take the reclaim guard, recovering one left by a dead owner first. */
-async function acquireReclaimGuard(guardPath: string): Promise<ReclaimGuard | undefined> {
-  const token = randomBytes(8).toString('hex')
-  const tryCreate = async (): Promise<ReclaimGuard | undefined> => {
-    const tempPath = `${guardPath}.${process.pid}.${token}.tmp`
-    try {
-      await writeFile(tempPath, `${process.pid} ${Date.now()} ${token}\n`, {
-        encoding: 'utf8',
-        mode: 0o600,
-      })
-      try {
-        // Atomic create with complete contents. Unlike open('wx') + writeFile,
-        // a contender can never observe an empty file between create and write.
-        await link(tempPath, guardPath)
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error
-        return undefined
-      }
-      return { token }
-    } finally {
-      await unlink(tempPath).catch(() => undefined)
-    }
-  }
-
-  const first = await tryCreate()
-  if (first !== undefined) return first
-  if (!(await clearDeadReclaimGuard(guardPath))) return undefined
-  return tryCreate()
-}
-
-/** True when this call removed a guard whose owner is no longer alive. */
-async function clearDeadReclaimGuard(guardPath: string): Promise<boolean> {
+/** First live, unfinished record in append order. */
+async function firstLiveReclaimToken(logPath: string): Promise<string | undefined> {
   let text: string
   try {
-    text = await readFile(guardPath, 'utf8')
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === 'ENOENT'
-  }
-
-  const pidText = text.trim().split(/\s+/)[0]
-  const pid = Number(pidText)
-  if (Number.isFinite(pid) && pid > 0) {
-    try {
-      process.kill(pid, 0)
-      return false
-    } catch (error) {
-      // EPERM means the process exists but belongs to someone else.
-      if ((error as NodeJS.ErrnoException).code === 'EPERM') return false
-    }
-  } else {
-    try {
-      const info = await stat(guardPath)
-      if (Date.now() - info.mtimeMs <= LOCK_STALE_MS) return false
-    } catch {
-      return false
-    }
-  }
-
-  // Move the candidate to a private name and verify the inode/content there.
-  // A replacement guard is never unlinked: if the move caught one, it is put
-  // back with a hard link (or left in the tombstone if another guard already
-  // took its path).
-  const tombstone = `${guardPath}.dead-${process.pid}-${randomBytes(4).toString('hex')}`
-  let before: Awaited<ReturnType<typeof stat>>
-  try {
-    before = await stat(guardPath)
+    text = await readFile(logPath, 'utf8')
   } catch {
-    return false
-  }
-  try {
-    const current = await readFile(guardPath, 'utf8')
-    if (current !== text) return false
-    await rename(guardPath, tombstone)
-  } catch {
-    return false
+    return undefined
   }
 
-  try {
-    const moved = await stat(tombstone)
-    const movedText = await readFile(tombstone, 'utf8')
-    if (moved.dev !== before.dev || moved.ino !== before.ino || movedText !== text) {
-      // We moved a replacement. Restore the same inode without overwriting a
-      // newer guard, and never unlink a replacement that we cannot restore.
-      try {
-        await link(tombstone, guardPath)
-        await unlink(tombstone).catch(() => undefined)
-      } catch {
-        // The path is occupied by yet another guard. Leave the tombstone; it
-        // is not the last link to the moved inode once restoration succeeds,
-        // and deleting it here could remove the only guard of a live owner.
-      }
-      return false
+  const lines = text.split('\n')
+  // Ignore a partial tail left by a crash or an interrupted append.
+  if (lines[lines.length - 1] !== '') lines.pop()
+
+  const records: Array<{ pid: number; identity: string; createdAt: number; token: string }> = []
+  const finished = new Set<string>()
+  for (const line of lines) {
+    const fields = line.trim().split(/\s+/)
+    // R/D <pid> <starttime> <createdAt> <token> ok
+    if (fields.length !== 6 || fields[5] !== 'ok') continue
+    const token = fields[4]
+    if (fields[0] === 'D') {
+      finished.add(token)
+      continue
     }
-    await unlink(tombstone).catch(() => undefined)
+    if (fields[0] !== 'R') continue
+    const pid = Number(fields[1])
+    const createdAt = Number(fields[3])
+    if (Number.isFinite(pid) && pid > 0) {
+      records.push({ pid, identity: fields[2], createdAt, token })
+    }
+  }
+
+  for (const record of records) {
+    if (finished.has(record.token)) continue
+    if (!isProcessAlive(record.pid)) continue
+    if (record.identity !== '-') {
+      const currentIdentity = await processStartIdentity(record.pid)
+      // A reused PID has a different start time. If /proc is momentarily
+      // unavailable, keep the conservative PID-based answer.
+      if (currentIdentity !== undefined && currentIdentity !== record.identity) continue
+    } else if (
+      Number.isFinite(record.createdAt) &&
+      Date.now() - record.createdAt > RECLAIM_RECORD_TTL_MS
+    ) {
+      // Without /proc there is no process-start identity. Bound the block so a
+      // reused PID cannot hold the log forever; the TTL is four stale windows.
+      continue
+    }
+    return record.token
+  }
+  return undefined
+}
+
+/**
+ * Linux process start time in clock ticks since boot. Together with the PID it
+ * identifies an incarnation, so a reused PID does not inherit an old record.
+ * Returns undefined on platforms without /proc.
+ */
+async function processStartIdentity(pid: number): Promise<string | undefined> {
+  try {
+    const text = await readFile(`/proc/${pid}/stat`, 'utf8')
+    const close = text.lastIndexOf(')')
+    if (close < 0) return undefined
+    // Fields after comm: field 3 is index 0, so starttime (field 22) is 19.
+    const value = text.slice(close + 2).trim().split(/\s+/)[19]
+    return value && /^\d+$/.test(value) ? value : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
     return true
-  } catch {
-    return false
+  } catch (error) {
+    // EPERM means the process exists but belongs to someone else.
+    return (error as NodeJS.ErrnoException).code === 'EPERM'
   }
 }
 
